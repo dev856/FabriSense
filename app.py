@@ -1,11 +1,12 @@
-﻿from pathlib import Path
+from pathlib import Path
 
 import streamlit as st
 
+from ui.components import render_sidebar_brand
 from ui.pages import (
     render_about_page,
     render_care_guide_page,
-    render_color_lab_page,
+    render_compare_page,
     render_fabric_guide_page,
     render_home_page,
     render_results_page,
@@ -15,7 +16,7 @@ from ui.styles import APP_CSS
 
 NAV_ITEMS = [
     "Analyze",
-    "Color Lab",
+    "Compare Fabrics",
     "Fabric Guide",
     "Care Guide",
     "About",
@@ -39,11 +40,13 @@ def main() -> None:
         st.session_state.image = None
     if "image_name" not in st.session_state:
         st.session_state.image_name = None
+    if "comparison_bundle" not in st.session_state:
+        st.session_state.comparison_bundle = None
 
     with st.sidebar:
-        st.markdown("## FabriSense")
-        st.caption("Analyze fabric imagery, inspect color palettes, and keep quick textile references in one place.")
+        render_sidebar_brand()
         page = st.radio("Navigate", NAV_ITEMS, label_visibility="collapsed")
+        st.caption("Built for designers, textile students, sellers, and presentation-ready product demos.")
 
     if page == "Analyze":
         render_home_page()
@@ -57,8 +60,8 @@ def main() -> None:
             )
         return
 
-    if page == "Color Lab":
-        render_color_lab_page()
+    if page == "Compare Fabrics":
+        render_compare_page()
         return
 
     if page == "Fabric Guide":

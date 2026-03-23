@@ -1,24 +1,27 @@
-﻿"""Page-level rendering for the FabriSense app."""
+"""Page-level rendering for the FabriSense app."""
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, Dict
 
 import streamlit as st
+from PIL import Image
 from streamlit_lottie import st_lottie
 
 from src.analyzer import FabricAnalyzer
-from src.color_extractor import ColorExtractor
 from src.image_preprocessor import ImagePreprocessor
 from src.report_generator import ReportGenerator
-from src.utils import format_analysis_for_display, get_random_fun_fact, load_json_asset
+from src.utils import compare_fabric_analyses, format_analysis_for_display, get_random_fun_fact, load_json_asset
 from ui.components import (
     render_color_palette,
     render_feature_strip,
     render_hero,
+    render_highlight_banner,
     render_key_value_block,
     render_list_block,
     render_metric_band,
+    render_page_intro,
     render_sample_gallery,
     render_upload_panel,
 )
@@ -96,61 +99,65 @@ CARE_GUIDE = [
     },
 ]
 
-
 MODE_LABELS = {
-    "AI Deep Analysis": "ai",
+    "AI-generated": "ai",
     "Local Analysis": "local",
 }
+
+
+def _engine_label(metadata: Dict[str, Any]) -> str:
+    return "AI-generated" if metadata.get("analysis_mode") == "ai" else "Local heuristics"
 
 
 def render_home_page() -> None:
     render_hero()
     render_feature_strip()
-    st.write("")
 
-    mode_label = st.radio("Analysis Mode", ["AI Deep Analysis", "Local Analysis"], horizontal=True)
+    mode_label = st.radio("Analysis Mode", ["AI-generated", "Local Analysis"], horizontal=True)
     analysis_mode = MODE_LABELS[mode_label]
 
     if analysis_mode == "local":
-        st.info(
-            "Local Analysis runs fully inside the app with computer-vision heuristics. "
-            "It does not require API keys and is best for fast baseline analysis."
+        render_highlight_banner(
+            "Local-first workflow",
+            "Run a fast baseline material read without API keys. This mode is best for demos, privacy-sensitive work, and no-network usage.",
         )
     else:
-        st.caption("AI Deep Analysis uses Gemini, OpenAI, or Ollama for richer textile reasoning.")
+        render_highlight_banner(
+            "AI-generated workflow",
+            "Use the guided model path when you want richer summary language, cleaner reasoning, and a more editorial material brief.",
+        )
 
     sample_choice = render_sample_gallery("assets/sample_fabrics")
-    upload_choice = render_upload_panel()
+    upload_choice = render_upload_panel(
+        title="Material Input",
+        prompt="Drop a close-up or flat-lay textile image for analysis",
+    )
     choice = upload_choice or sample_choice
 
-    provider = None
-    if analysis_mode == "ai":
-        provider = st.selectbox("Model provider", ["gemini", "openai", "ollama"], index=0)
-
     if choice is None:
-        st.info("Upload a fabric image or select a sample to begin.")
+        st.info("Choose a curated sample or upload an image to start a material read.")
         return
 
     image, image_name = choice
-    button_label = "Run Local Analysis" if analysis_mode == "local" else "Analyze Fabric"
+    button_label = "Run Local Analysis" if analysis_mode == "local" else "Generate AI Brief"
     if st.button(button_label, type="primary", use_container_width=True):
-        _run_analysis(image=image, image_name=image_name, provider=provider, analysis_mode=analysis_mode)
+        _run_analysis(image=image, image_name=image_name, analysis_mode=analysis_mode)
 
 
-def _run_analysis(image, image_name: str, provider: str | None, analysis_mode: str) -> None:
+def _run_analysis(image, image_name: str, analysis_mode: str) -> None:
     with st.container():
         loading_asset = load_json_asset("assets/lottie_loading.json")
         if loading_asset:
             st_lottie(loading_asset, height=140, key="loading-animation")
         st.markdown(f"<div class='loading-card'>{get_random_fun_fact()}</div>", unsafe_allow_html=True)
-        spinner_text = "Running local vision heuristics..." if analysis_mode == "local" else "Inspecting weave, color, and fabric cues..."
+        spinner_text = "Running local vision heuristics..." if analysis_mode == "local" else "Building an AI-generated material brief..."
         with st.spinner(spinner_text):
             try:
-                analyzer = FabricAnalyzer(llm_provider=provider)
+                analyzer = FabricAnalyzer()
                 analysis = analyzer.analyze(image, mode=analysis_mode)
                 report_bytes = ReportGenerator().generate_pdf(analysis, image)
             except Exception as exc:
-                prefix = "Local analysis failed." if analysis_mode == "local" else "Analysis failed. Check your `.env` provider credentials or local Ollama setup."
+                prefix = "Local analysis failed." if analysis_mode == "local" else "AI-generated analysis failed. Check your `.env` configuration."
                 st.error(f"{prefix} Details: {exc}")
                 return
 
@@ -163,9 +170,13 @@ def _run_analysis(image, image_name: str, provider: str | None, analysis_mode: s
 
 def render_results_page(analysis: Dict[str, Any], report_bytes: bytes | None, image, image_name: str) -> None:
     metadata = analysis.get("analysis_metadata", {})
-    st.markdown("## Analysis Results")
+    render_page_intro(
+        "ANALYSIS OUTPUT",
+        "Material brief ready for review.",
+        "The result below combines structure, palette, surface behavior, and commercial guidance into one presentation layer.",
+    )
     st.caption(
-        f"Mode: {metadata.get('analysis_mode', 'unknown')} | Engine: {metadata.get('model_used', 'unknown')} | "
+        f"Mode: {metadata.get('analysis_mode', 'unknown')} | Engine: {_engine_label(metadata)} | "
         f"Color clusters: {metadata.get('color_clusters', 'N/A')}"
     )
     display = format_analysis_for_display(analysis)
@@ -201,7 +212,7 @@ def render_results_page(analysis: Dict[str, Any], report_bytes: bytes | None, im
         sustainability = llm.get("sustainability", {})
 
         render_key_value_block(
-            "Fabric Snapshot",
+            "Material Snapshot",
             {
                 "Primary Fabric": fabric.get("primary", "N/A"),
                 "Subtype": fabric.get("sub_type", "N/A"),
@@ -278,42 +289,176 @@ def render_results_page(analysis: Dict[str, Any], report_bytes: bytes | None, im
         )
 
 
-def render_color_lab_page() -> None:
-    st.markdown("## Color Lab")
-    st.write("Use Color Lab when you only want the dominant palette and fabric image metadata without a live LLM call.")
+def render_compare_page() -> None:
+    render_page_intro(
+        "SIDE-BY-SIDE REVIEW",
+        "Compare two materials in one workspace.",
+        "Use the comparison view to separate fabric family, pattern direction, palette shifts, and visual quality without jumping between tabs.",
+    )
 
-    upload = render_upload_panel()
-    if upload is None:
-        st.info("Upload an image to extract its color palette locally.")
-        return
+    mode_label = st.radio("Comparison Mode", ["AI-generated", "Local Analysis"], horizontal=True, key="compare_mode")
+    analysis_mode = MODE_LABELS[mode_label]
 
-    image, image_name = upload
-    extractor = ColorExtractor(n_colors=6)
-    palette = extractor.extract_palette(image)
-    harmony = extractor.get_color_harmony(palette)
-    info = ImagePreprocessor.get_image_info(image)
-
-    left, right = st.columns((0.9, 1.1))
-    with left:
-        st.image(image, caption=image_name, use_container_width=True)
-    with right:
-        render_key_value_block(
-            "Image Details",
-            {
-                "Width": info.get("width", "N/A"),
-                "Height": info.get("height", "N/A"),
-                "Mode": info.get("mode", "N/A"),
-                "Aspect Ratio": info.get("aspect_ratio", "N/A"),
-                "Harmony": harmony,
-            },
+    if analysis_mode == "local":
+        render_highlight_banner(
+            "Fast comparison mode",
+            "No API setup required. Compare textile structure, color, and quality heuristics immediately.",
+        )
+    else:
+        render_highlight_banner(
+            "AI-generated comparison",
+            "Use the guided AI path when you want more interpretive differences in material description and commercial framing.",
         )
 
-    render_color_palette(palette, harmony)
+    left, right = st.columns(2)
+    with left:
+        image_a, name_a = _render_compare_input("Material A", "compare_a")
+    with right:
+        image_b, name_b = _render_compare_input("Material B", "compare_b")
+
+    if image_a is not None and image_b is not None:
+        button_label = "Run Local Comparison" if analysis_mode == "local" else "Generate Comparison"
+        if st.button(button_label, type="primary", use_container_width=True):
+            _run_comparison(image_a, name_a, image_b, name_b, analysis_mode)
+
+    bundle = st.session_state.comparison_bundle
+    if not bundle:
+        return
+
+    st.divider()
+    render_page_intro(
+        "COMPARISON RESULT",
+        "A clearer read on which material performs better visually.",
+        "Review the recommendation, inspect each textile panel, and use the differences list to explain the selection with confidence.",
+    )
+    st.caption(f"Mode: {bundle.get('analysis_mode', 'unknown')} | Engine: {_engine_label(bundle)}")
+
+    summary = bundle["summary"]
+    winner = summary["winner"]
+    winner_text = f"Recommended option: {winner}" if winner != "Tie" else "Recommended option: Tie"
+    render_highlight_banner(winner_text, summary["winner_reason"])
+
+    metric_cols = st.columns(4)
+    metric_cols[0].metric(bundle["name_a"], f"{summary['score_a']:.1f}/10")
+    metric_cols[1].metric(bundle["name_b"], f"{summary['score_b']:.1f}/10")
+    metric_cols[2].metric("Fabric Shift", f"{summary['fabric_a']} -> {summary['fabric_b']}")
+    metric_cols[3].metric("Pattern Shift", f"{summary['pattern_a']} -> {summary['pattern_b']}")
+
+    left_result, right_result = st.columns(2)
+    with left_result:
+        _render_compare_result_card(bundle["analysis_a"], bundle["image_a"], bundle["name_a"])
+    with right_result:
+        _render_compare_result_card(bundle["analysis_b"], bundle["image_b"], bundle["name_b"])
+
+    list_left, list_right = st.columns(2)
+    with list_left:
+        render_list_block("Shared Signals", summary["similarities"])
+    with list_right:
+        render_list_block("Meaningful Differences", summary["differences"])
+
+    if st.button("Clear Comparison", use_container_width=True):
+        st.session_state.comparison_bundle = None
+        st.rerun()
+
+
+def _run_comparison(
+    image_a: Image.Image,
+    name_a: str,
+    image_b: Image.Image,
+    name_b: str,
+    analysis_mode: str,
+) -> None:
+    loading_asset = load_json_asset("assets/lottie_loading.json")
+    if loading_asset:
+        st_lottie(loading_asset, height=120, key="comparison-loading")
+    st.markdown(f"<div class='loading-card'>{get_random_fun_fact()}</div>", unsafe_allow_html=True)
+
+    spinner_text = "Comparing local texture and color signals..." if analysis_mode == "local" else "Building an AI-generated side-by-side review..."
+    with st.spinner(spinner_text):
+        try:
+            analyzer = FabricAnalyzer()
+            analysis_a = analyzer.analyze(image_a, mode=analysis_mode)
+            analysis_b = analyzer.analyze(image_b, mode=analysis_mode)
+            summary = compare_fabric_analyses(analysis_a, name_a, analysis_b, name_b)
+        except Exception as exc:
+            prefix = "Local comparison failed." if analysis_mode == "local" else "AI-generated comparison failed. Check your `.env` configuration."
+            st.error(f"{prefix} Details: {exc}")
+            return
+
+    st.session_state.comparison_bundle = {
+        "analysis_a": analysis_a,
+        "analysis_b": analysis_b,
+        "image_a": image_a,
+        "image_b": image_b,
+        "name_a": name_a,
+        "name_b": name_b,
+        "summary": summary,
+        "analysis_mode": analysis_mode,
+        "model_used": analysis_a.get("analysis_metadata", {}).get("model_used", "unknown"),
+    }
+    st.rerun()
+
+
+def _render_compare_result_card(analysis: Dict[str, Any], image: Image.Image, name: str) -> None:
+    llm = analysis.get("llm_analysis", {})
+    dominant = analysis.get("color_palette", {}).get("dominant_color", {}) or {}
+    st.image(image, caption=name, use_container_width=True)
+    render_key_value_block(
+        name,
+        {
+            "Fabric": llm.get("fabric_type", {}).get("primary", "N/A"),
+            "Pattern": llm.get("pattern", {}).get("type", "N/A"),
+            "Texture": llm.get("texture", {}).get("primary", "N/A"),
+            "Weight": llm.get("texture", {}).get("weight", "N/A"),
+            "Quality": f"{llm.get('quality_assessment', {}).get('score', 'N/A')} / 10",
+            "Dominant Color": dominant.get("name", "N/A"),
+            "Price Tier": llm.get("price_range", {}).get("category", "N/A"),
+        },
+    )
+    render_color_palette(analysis.get("color_palette", {}).get("colors", [])[:3], analysis.get("color_palette", {}).get("harmony_type", "Unknown"))
+
+
+def _render_compare_input(title: str, key_prefix: str) -> tuple[Image.Image | None, str | None]:
+    st.markdown(f"### {title}")
+    uploaded = st.file_uploader(
+        f"Upload image for {title}",
+        type=sorted(ImagePreprocessor.SUPPORTED_FORMATS),
+        key=f"{key_prefix}_upload",
+        accept_multiple_files=False,
+    )
+
+    sample_paths = sorted(Path("assets/sample_fabrics").glob("*.jpg"))
+    sample_labels = ["None"] + [path.stem.replace("_", " ").title() for path in sample_paths]
+    selected_label = st.selectbox(f"Or choose a curated sample for {title}", sample_labels, key=f"{key_prefix}_sample")
+
+    image = None
+    name = None
+
+    if uploaded is not None:
+        valid, message = ImagePreprocessor.validate_image(uploaded)
+        if not valid:
+            st.error(message)
+            return None, None
+        image = ImagePreprocessor.load_image(uploaded)
+        name = uploaded.name
+        st.caption(message)
+    elif selected_label != "None":
+        selected_path = sample_paths[sample_labels.index(selected_label) - 1]
+        image = Image.open(selected_path).convert("RGB")
+        name = selected_path.name
+
+    if image is not None and name is not None:
+        st.image(ImagePreprocessor.resize_for_display(image), caption=name, use_container_width=True)
+
+    return image, name
 
 
 def render_fabric_guide_page() -> None:
-    st.markdown("## Fabric Guide")
-    st.write("A compact reference view for common textile families and the tradeoffs they usually bring.")
+    render_page_intro(
+        "REFERENCE LIBRARY",
+        "A compact guide to common fabric families.",
+        "Use this page as a quick working reference when you need plain-language reminders about feel, use cases, and caution points.",
+    )
 
     cols = st.columns(2)
     for index, item in enumerate(FABRIC_GUIDE):
@@ -329,11 +474,13 @@ def render_fabric_guide_page() -> None:
 
 
 def render_care_guide_page() -> None:
-    st.markdown("## Care Guide")
-    st.write("Quick handling defaults for common fabrics. Real garments can override these with trim, dye, or finishing requirements.")
+    render_page_intro(
+        "CARE DEFAULTS",
+        "Fast handling guidance for common material families.",
+        "These are general defaults for textile handling. Final garment care still depends on dye, finish, trims, and construction.",
+    )
     st.table(CARE_GUIDE)
 
-    st.markdown("### Quick Rules")
     render_list_block(
         "Good Habits",
         [
@@ -346,19 +493,23 @@ def render_care_guide_page() -> None:
 
 
 def render_about_page() -> None:
+    render_page_intro(
+        "PLATFORM OVERVIEW",
+        "FabriSense combines visual fabric reading with presentation-ready output.",
+        "The app is designed for designers, textile learners, sellers, and merchandisers who need a polished way to translate fabric imagery into useful product language.",
+    )
     landing_asset = load_json_asset("assets/lottie_fabric.json")
     left, right = st.columns((0.7, 1.3))
     with left:
         if landing_asset:
             st_lottie(landing_asset, height=260, key="fabric-animation")
     with right:
-        st.markdown("## About FabriSense")
-        st.write(
-            "FabriSense combines a vision-capable LLM with local image processing to turn a fabric image "
-            "into a structured textile brief. The app is aimed at design teams, textile students, sellers, "
-            "and decorators who need fast descriptive analysis from a single image."
-        )
-        st.write(
-            "The pipeline preprocesses the image, extracts a computer-vision color palette, calls the selected "
-            "LLM provider for structured analysis, and packages the result into an on-screen dashboard plus PDF report."
+        render_key_value_block(
+            "How It Works",
+            {
+                "Input": "A textile image from upload or sample library.",
+                "Core Processing": "Image preparation, palette extraction, and either local or AI-generated interpretation.",
+                "Outputs": "Material summary, comparison view, and downloadable PDF report.",
+                "Best Use": "Presentations, educational demos, and exploratory textile analysis workflows.",
+            },
         )
