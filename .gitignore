@@ -153,6 +153,7 @@ venv.bak/
 temp_*.jpg
 *.pdf
 reports/
+data/analysis_history.json
 
 # Local model and cache artifacts
 .ollama/

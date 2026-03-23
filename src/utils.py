@@ -1,11 +1,14 @@
-﻿"""Shared helpers for display formatting and asset loading."""
+"""Shared helpers for display formatting and asset loading."""
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 import random
+from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Iterable, List, Optional
 
 
 FABRIC_FUN_FACTS = [
@@ -52,6 +55,45 @@ def format_analysis_for_display(analysis: Dict[str, Any]) -> Dict[str, Any]:
         "price_category": price.get("category", "N/A"),
         "eco_score": sustainability.get("eco_score", "N/A"),
     }
+
+
+def summarize_analysis(analysis: Dict[str, Any], image_name: str) -> Dict[str, Any]:
+    llm = analysis.get("llm_analysis", {})
+    metadata = analysis.get("analysis_metadata", {})
+    dominant = analysis.get("color_palette", {}).get("dominant_color", {}) or {}
+    season_block = llm.get("season_recommendation", {})
+
+    return {
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "image_name": image_name,
+        "mode": metadata.get("analysis_mode", "unknown"),
+        "engine": "AI-generated" if metadata.get("analysis_mode") == "ai" else "Local heuristics",
+        "fabric": llm.get("fabric_type", {}).get("primary", "N/A"),
+        "pattern": llm.get("pattern", {}).get("type", "N/A"),
+        "texture": llm.get("texture", {}).get("primary", "N/A"),
+        "weight": llm.get("texture", {}).get("weight", "N/A"),
+        "dominant_color": dominant.get("name", "N/A"),
+        "quality_score": float(llm.get("quality_assessment", {}).get("score", 0) or 0),
+        "price_tier": llm.get("price_range", {}).get("category", "N/A"),
+        "best_seasons": ", ".join(season_block.get("best_seasons", []) or []),
+        "summary": llm.get("overall_summary", "N/A"),
+    }
+
+
+def analyses_to_csv(rows: Iterable[Dict[str, Any]]) -> bytes:
+    rows_list = list(rows)
+    if not rows_list:
+        return b""
+    fieldnames = list(rows_list[0].keys())
+    buffer = io.StringIO()
+    writer = csv.DictWriter(buffer, fieldnames=fieldnames)
+    writer.writeheader()
+    writer.writerows(rows_list)
+    return buffer.getvalue().encode("utf-8")
+
+
+def history_entry_from_summary(summary: Dict[str, Any]) -> Dict[str, Any]:
+    return dict(summary)
 
 
 def compare_fabric_analyses(

@@ -5,9 +5,11 @@ import streamlit as st
 from ui.components import render_sidebar_brand
 from ui.pages import (
     render_about_page,
+    render_batch_page,
     render_care_guide_page,
     render_compare_page,
     render_fabric_guide_page,
+    render_history_page,
     render_home_page,
     render_results_page,
 )
@@ -16,7 +18,9 @@ from ui.styles import APP_CSS
 
 NAV_ITEMS = [
     "Analyze",
+    "Batch Analysis",
     "Compare Fabrics",
+    "History",
     "Fabric Guide",
     "Care Guide",
     "About",
@@ -42,6 +46,8 @@ def main() -> None:
         st.session_state.image_name = None
     if "comparison_bundle" not in st.session_state:
         st.session_state.comparison_bundle = None
+    if "batch_bundle" not in st.session_state:
+        st.session_state.batch_bundle = None
 
     with st.sidebar:
         render_sidebar_brand()
@@ -60,8 +66,16 @@ def main() -> None:
             )
         return
 
+    if page == "Batch Analysis":
+        render_batch_page()
+        return
+
     if page == "Compare Fabrics":
         render_compare_page()
+        return
+
+    if page == "History":
+        render_history_page()
         return
 
     if page == "Fabric Guide":

@@ -10,9 +10,18 @@ from PIL import Image
 from streamlit_lottie import st_lottie
 
 from src.analyzer import FabricAnalyzer
+from src.history_store import HistoryStore
 from src.image_preprocessor import ImagePreprocessor
 from src.report_generator import ReportGenerator
-from src.utils import compare_fabric_analyses, format_analysis_for_display, get_random_fun_fact, load_json_asset
+from src.utils import (
+    analyses_to_csv,
+    compare_fabric_analyses,
+    format_analysis_for_display,
+    get_random_fun_fact,
+    history_entry_from_summary,
+    load_json_asset,
+    summarize_analysis,
+)
 from ui.components import (
     render_color_palette,
     render_feature_strip,
@@ -104,6 +113,8 @@ MODE_LABELS = {
     "Local Analysis": "local",
 }
 
+HISTORY = HistoryStore()
+
 
 def _engine_label(metadata: Dict[str, Any]) -> str:
     return "AI-generated" if metadata.get("analysis_mode") == "ai" else "Local heuristics"
@@ -161,6 +172,8 @@ def _run_analysis(image, image_name: str, analysis_mode: str) -> None:
                 st.error(f"{prefix} Details: {exc}")
                 return
 
+    summary = summarize_analysis(analysis, image_name)
+    HISTORY.append(history_entry_from_summary(summary))
     st.session_state.analysis = analysis
     st.session_state.report_bytes = report_bytes
     st.session_state.image = image
@@ -287,6 +300,117 @@ def render_results_page(analysis: Dict[str, Any], report_bytes: bytes | None, im
                 "Sustainability Notes": sustainability.get("notes", "N/A"),
             },
         )
+
+
+def render_batch_page() -> None:
+    render_page_intro(
+        "MULTI-ITEM WORKFLOW",
+        "Analyze a batch of fabric images in one run.",
+        "Use batch mode to review seller catalogs, classroom submissions, or sourcing references and export the summary as CSV.",
+    )
+    mode_label = st.radio("Batch Mode", ["AI-generated", "Local Analysis"], horizontal=True, key="batch_mode")
+    analysis_mode = MODE_LABELS[mode_label]
+
+    if analysis_mode == "local":
+        render_highlight_banner(
+            "Fast catalog pass",
+            "Local batch mode is the best fit for quick sorting, tagging, and review of many images at once.",
+        )
+    else:
+        render_highlight_banner(
+            "AI-generated batch run",
+            "Use the AI path when the batch needs stronger descriptive language and a more refined brief per image.",
+        )
+
+    files = st.file_uploader(
+        "Upload multiple fabric images",
+        type=sorted(ImagePreprocessor.SUPPORTED_FORMATS),
+        accept_multiple_files=True,
+        key="batch_upload",
+    )
+
+    if files and st.button("Run Batch Analysis", type="primary", use_container_width=True):
+        _run_batch_analysis(files, analysis_mode)
+
+    bundle = st.session_state.batch_bundle
+    if not bundle:
+        st.info("Upload several textile images to generate a batch summary and CSV export.")
+        return
+
+    rows = bundle["rows"]
+    st.caption(f"Batch size: {len(rows)} | Mode: {bundle['analysis_mode']} | Engine: {bundle['engine']}")
+    st.download_button(
+        "Download Batch CSV",
+        data=analyses_to_csv(rows),
+        file_name="fabrisense-batch-summary.csv",
+        mime="text/csv",
+        use_container_width=True,
+    )
+    st.dataframe(rows, use_container_width=True)
+
+    for item in bundle["details"]:
+        with st.expander(item["image_name"]):
+            render_key_value_block(
+                "Batch Summary",
+                {
+                    "Fabric": item["fabric"],
+                    "Pattern": item["pattern"],
+                    "Texture": item["texture"],
+                    "Dominant Color": item["dominant_color"],
+                    "Quality": item["quality_score"],
+                    "Price Tier": item["price_tier"],
+                    "Best Seasons": item["best_seasons"] or "N/A",
+                    "Summary": item["summary"],
+                },
+            )
+
+
+def _run_batch_analysis(files: list[Any], analysis_mode: str) -> None:
+    loading_asset = load_json_asset("assets/lottie_loading.json")
+    if loading_asset:
+        st_lottie(loading_asset, height=120, key="batch-loading")
+    st.markdown(f"<div class='loading-card'>{get_random_fun_fact()}</div>", unsafe_allow_html=True)
+
+    rows = []
+    details = []
+    with st.spinner("Running batch analysis across uploaded materials..."):
+        analyzer = FabricAnalyzer()
+        for uploaded in files:
+            valid, message = ImagePreprocessor.validate_image(uploaded)
+            if not valid:
+                rows.append(
+                    {
+                        "timestamp": "",
+                        "image_name": getattr(uploaded, "name", "unknown"),
+                        "mode": analysis_mode,
+                        "engine": "Error",
+                        "fabric": "Invalid image",
+                        "pattern": message,
+                        "texture": "",
+                        "weight": "",
+                        "dominant_color": "",
+                        "quality_score": 0,
+                        "price_tier": "",
+                        "best_seasons": "",
+                        "summary": "Validation failed before analysis.",
+                    }
+                )
+                continue
+
+            image = ImagePreprocessor.load_image(uploaded)
+            analysis = analyzer.analyze(image, mode=analysis_mode)
+            row = summarize_analysis(analysis, uploaded.name)
+            rows.append(row)
+            details.append(row)
+            HISTORY.append(history_entry_from_summary(row))
+
+    st.session_state.batch_bundle = {
+        "rows": rows,
+        "details": details,
+        "analysis_mode": analysis_mode,
+        "engine": "AI-generated" if analysis_mode == "ai" else "Local heuristics",
+    }
+    st.rerun()
 
 
 def render_compare_page() -> None:
@@ -453,6 +577,31 @@ def _render_compare_input(title: str, key_prefix: str) -> tuple[Image.Image | No
     return image, name
 
 
+def render_history_page() -> None:
+    render_page_intro(
+        "WORKING HISTORY",
+        "Review recent material reads without re-uploading.",
+        "History keeps a compact local log of prior runs so the app works more like a real review workspace.",
+    )
+    history = HISTORY.load()
+    if not history:
+        st.info("No saved analysis history yet. Run a single or batch analysis first.")
+        return
+
+    st.download_button(
+        "Download History CSV",
+        data=analyses_to_csv(history),
+        file_name="fabrisense-history.csv",
+        mime="text/csv",
+        use_container_width=True,
+    )
+    if st.button("Clear History", use_container_width=True):
+        HISTORY.clear()
+        st.rerun()
+
+    st.dataframe(history, use_container_width=True)
+
+
 def render_fabric_guide_page() -> None:
     render_page_intro(
         "REFERENCE LIBRARY",
@@ -509,7 +658,7 @@ def render_about_page() -> None:
             {
                 "Input": "A textile image from upload or sample library.",
                 "Core Processing": "Image preparation, palette extraction, and either local or AI-generated interpretation.",
-                "Outputs": "Material summary, comparison view, and downloadable PDF report.",
-                "Best Use": "Presentations, educational demos, and exploratory textile analysis workflows.",
+                "Outputs": "Material summary, comparison view, batch export, and downloadable PDF report.",
+                "Best Use": "Presentations, educational demos, catalog review, and exploratory textile analysis workflows.",
             },
         )
