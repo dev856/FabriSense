@@ -1,4 +1,4 @@
-﻿"""PDF report generation for FabriSense analysis results."""
+"""PDF report generation for FabriSense analysis results."""
 
 from __future__ import annotations
 
@@ -12,16 +12,25 @@ from PIL import Image
 
 
 class ReportGenerator:
-    """Build a compact PDF report that mirrors the main app results."""
+    """Build a richer PDF report for FabriSense analysis results."""
 
     def generate_pdf(self, analysis: Dict[str, Any], image: Image.Image) -> bytes:
         pdf = FPDF()
         pdf.set_auto_page_break(auto=True, margin=15)
         pdf.add_page()
 
+        llm = analysis.get("llm_analysis", {})
+        metadata = analysis.get("analysis_metadata", {})
+        image_info = analysis.get("image_info", {})
+        palette_block = analysis.get("color_palette", {})
+        palette = palette_block.get("colors", [])
+
+        engine = "AI-generated" if metadata.get("analysis_mode") == "ai" else "Local heuristics"
+        dominant = palette_block.get("dominant_color", {}) or {}
+
         pdf.set_font("Helvetica", "B", 22)
         pdf.set_text_color(195, 91, 44)
-        pdf.cell(0, 14, "FabriSense Analysis Report", new_x="LMARGIN", new_y="NEXT", align="C")
+        pdf.cell(0, 14, "FabriSense Material Report", new_x="LMARGIN", new_y="NEXT", align="C")
 
         pdf.set_font("Helvetica", "", 10)
         pdf.set_text_color(96, 90, 84)
@@ -33,66 +42,150 @@ class ReportGenerator:
             new_y="NEXT",
             align="C",
         )
+        pdf.cell(
+            0,
+            6,
+            f"Mode: {metadata.get('analysis_mode', 'unknown')} | Engine: {engine}",
+            new_x="LMARGIN",
+            new_y="NEXT",
+            align="C",
+        )
         pdf.ln(4)
 
         image_path = self._write_temp_image(image)
         try:
-            x_center = (210 - 90) / 2
-            pdf.image(image_path, x=x_center, w=90)
+            x_center = (210 - 84) / 2
+            pdf.image(image_path, x=x_center, w=84)
         finally:
             if os.path.exists(image_path):
                 os.remove(image_path)
         pdf.ln(6)
 
-        llm = analysis.get("llm_analysis", {})
-        palette = analysis.get("color_palette", {}).get("colors", [])
+        self._section(pdf, "Executive Summary")
+        self._highlight_box(pdf, llm.get("overall_summary", "No summary available."))
 
-        self._section(pdf, "Fabric Type")
         fabric = llm.get("fabric_type", {})
-        self._line(pdf, f"Primary: {fabric.get('primary', 'N/A')}")
-        self._line(pdf, f"Subtype: {fabric.get('sub_type', 'N/A')}")
-        self._line(pdf, f"Blend: {fabric.get('blend_composition', 'N/A')}")
-
-        self._section(pdf, "Pattern and Texture")
         pattern = llm.get("pattern", {})
         texture = llm.get("texture", {})
-        self._line(pdf, f"Pattern: {pattern.get('type', 'N/A')} / {pattern.get('sub_type', 'N/A')}")
-        self._line(pdf, f"Texture: {texture.get('primary', 'N/A')}")
-        self._line(pdf, f"Weight: {texture.get('weight', 'N/A')}")
+        quality = llm.get("quality_assessment", {})
+        care = llm.get("care_instructions", {})
+        season = llm.get("season_recommendation", {})
+        price = llm.get("price_range", {})
+        sustainability = llm.get("sustainability", {})
+        interior = llm.get("interior_use", {})
+
+        self._section(pdf, "Material Snapshot")
+        self._key_value_lines(
+            pdf,
+            [
+                ("Primary fabric", fabric.get("primary", "N/A")),
+                ("Subtype", fabric.get("sub_type", "N/A")),
+                ("Estimated blend", fabric.get("blend_composition", "N/A")),
+                ("Confidence", fabric.get("confidence", "N/A")),
+                ("Pattern", f"{pattern.get('type', 'N/A')} / {pattern.get('sub_type', 'N/A')}"),
+                ("Pattern scale", pattern.get("pattern_scale", "N/A")),
+                ("Pattern repeat", pattern.get("pattern_repeat", "N/A")),
+                ("Texture", texture.get("primary", "N/A")),
+                ("Hand feel", texture.get("hand_feel", "N/A")),
+                ("Weight", texture.get("weight", "N/A")),
+                ("Drape", texture.get("drape", "N/A")),
+                ("Sheen", texture.get("sheen", "N/A")),
+            ],
+        )
         self._paragraph(pdf, f"Pattern notes: {pattern.get('description', 'N/A')}")
 
-        self._section(pdf, "Quality")
-        quality = llm.get("quality_assessment", {})
-        self._line(pdf, f"Score: {quality.get('score', 'N/A')} / 10")
-        self._line(pdf, f"Grade: {quality.get('grade', 'N/A')}")
-        self._line(pdf, f"Durability: {quality.get('durability_estimate', 'N/A')}")
-        self._bullet_lines(pdf, quality.get("factors", []))
+        self._section(pdf, "Visual Quality Review")
+        self._key_value_lines(
+            pdf,
+            [
+                ("Quality score", f"{quality.get('score', 'N/A')} / {quality.get('out_of', 10)}"),
+                ("Grade", quality.get("grade", "N/A")),
+                ("Durability", quality.get("durability_estimate", "N/A")),
+                ("Pilling tendency", quality.get("pilling_tendency", "N/A")),
+            ],
+        )
+        self._bullet_lines(pdf, quality.get("factors", []), fallback="No specific quality factors supplied.")
 
-        self._section(pdf, "Dominant Colors")
-        for color in palette[:6]:
-            self._line(pdf, f"{color['name']} {color['hex']} ({color['percentage']}%)")
+        self._section(pdf, "Color Direction")
+        self._key_value_lines(
+            pdf,
+            [
+                ("Harmony", palette_block.get("harmony_type", "Unknown")),
+                ("Dominant color", f"{dominant.get('name', 'N/A')} {dominant.get('hex', '')}".strip()),
+            ],
+        )
+        self._color_rows(pdf, palette[:6])
 
-        self._section(pdf, "Care Instructions")
-        care = llm.get("care_instructions", {})
-        self._line(pdf, f"Washing: {care.get('washing', 'N/A')}")
-        self._line(pdf, f"Drying: {care.get('drying', 'N/A')}")
-        self._line(pdf, f"Ironing: {care.get('ironing', 'N/A')}")
-        self._paragraph(pdf, f"Special care: {care.get('special_care', 'N/A')}")
+        self._section(pdf, "Care and Handling")
+        self._key_value_lines(
+            pdf,
+            [
+                ("Washing", care.get("washing", "N/A")),
+                ("Drying", care.get("drying", "N/A")),
+                ("Ironing", care.get("ironing", "N/A")),
+                ("Special care", care.get("special_care", "N/A")),
+                ("Dry clean recommended", self._yes_no(care.get("dry_clean_recommended"))),
+                ("Bleach safe", self._yes_no(care.get("bleach_safe"))),
+            ],
+        )
 
-        self._section(pdf, "Styling Suggestions")
-        for suggestion in llm.get("styling_suggestions", []):
-            garment = suggestion.get("garment", "N/A")
-            style = suggestion.get("style", "N/A")
-            audience = suggestion.get("target_audience", "N/A")
-            self._line(pdf, f"{garment}: {style} ({audience})")
+        self._section(pdf, "Commercial Fit")
+        self._key_value_lines(
+            pdf,
+            [
+                ("Best seasons", self._list_text(season.get("best_seasons", []))),
+                ("Avoid seasons", self._list_text(season.get("avoid_seasons", []))),
+                ("Climate suitability", season.get("climate_suitability", "N/A")),
+                ("Breathability", season.get("breathability", "N/A")),
+                ("Price tier", price.get("category", "N/A")),
+                ("Estimated USD per meter", price.get("estimated_per_meter_usd", "N/A")),
+                ("Estimated INR per meter", price.get("estimated_per_meter_inr", "N/A")),
+                ("Value for money", price.get("value_for_money", "N/A")),
+                ("Eco score", f"{sustainability.get('eco_score', 'N/A')} / {sustainability.get('out_of', 10)}"),
+                ("Environmental impact", sustainability.get("environmental_impact", "N/A")),
+                ("Biodegradable", self._yes_no(sustainability.get("biodegradable"))),
+                ("Recyclable", self._yes_no(sustainability.get("recyclable"))),
+            ],
+        )
+        self._paragraph(pdf, f"Sustainability notes: {sustainability.get('notes', 'N/A')}")
 
-        self._section(pdf, "Summary")
-        self._paragraph(pdf, llm.get("overall_summary", "No summary available."))
+        self._section(pdf, "Recommended Uses")
+        self._bullet_lines(
+            pdf,
+            [
+                f"{item.get('occasion', 'N/A')} ({item.get('suitability_score', 'N/A')}/10): {item.get('note', 'N/A')}"
+                for item in llm.get("occasion_suitability", [])
+            ],
+            fallback="No occasion recommendations available.",
+        )
+        self._bullet_lines(
+            pdf,
+            [
+                f"{item.get('garment', 'N/A')}: {item.get('style', 'N/A')} for {item.get('target_audience', 'N/A')}"
+                for item in llm.get("styling_suggestions", [])
+            ],
+            fallback="No styling suggestions available.",
+        )
+        interior_label = "Suitable" if interior.get("suitable") else "Limited suitability"
+        self._paragraph(pdf, f"Interior application: {interior_label}. {interior.get('notes', 'N/A')}")
+        self._bullet_lines(pdf, interior.get("suggestions", []), fallback="No interior suggestions available.")
+
+        self._section(pdf, "Reference Metadata")
+        self._key_value_lines(
+            pdf,
+            [
+                ("Image size", f"{image_info.get('width', 'N/A')} x {image_info.get('height', 'N/A')}"),
+                ("Aspect ratio", image_info.get("aspect_ratio", "N/A")),
+                ("Color mode", image_info.get("mode", "N/A")),
+                ("Color clusters", metadata.get("color_clusters", "N/A")),
+                ("Fun fact", llm.get("fun_fact", "N/A")),
+            ],
+        )
 
         pdf.ln(6)
         pdf.set_font("Helvetica", "I", 8)
         pdf.set_text_color(120, 120, 120)
-        pdf.cell(0, 5, "Generated by FabriSense AI for reference purposes.", align="C")
+        pdf.cell(0, 5, "Generated by FabriSense for reference and review workflows.", align="C")
 
         output = pdf.output(dest="S")
         if isinstance(output, bytearray):
@@ -119,16 +212,64 @@ class ReportGenerator:
         pdf.line(10, y, 200, y)
         pdf.ln(2)
 
+    def _highlight_box(self, pdf: FPDF, text: str) -> None:
+        pdf.set_fill_color(250, 238, 225)
+        pdf.set_draw_color(227, 196, 167)
+        x = pdf.get_x()
+        y = pdf.get_y()
+        pdf.multi_cell(0, 7, text, border=1, fill=True)
+        pdf.set_xy(x, max(y, pdf.get_y()))
+
+    def _key_value_lines(self, pdf: FPDF, rows: Iterable[tuple[str, Any]]) -> None:
+        for label, value in rows:
+            self._line(pdf, f"{label}: {value}")
+
     def _line(self, pdf: FPDF, text: str) -> None:
         pdf.set_font("Helvetica", "", 10)
         pdf.set_text_color(45, 45, 45)
-        pdf.cell(0, 6, text, new_x="LMARGIN", new_y="NEXT")
+        pdf.multi_cell(0, 6, text)
 
     def _paragraph(self, pdf: FPDF, text: str) -> None:
         pdf.set_font("Helvetica", "", 10)
         pdf.set_text_color(45, 45, 45)
         pdf.multi_cell(0, 6, text)
 
-    def _bullet_lines(self, pdf: FPDF, items: Iterable[str]) -> None:
-        for item in items:
-            self._line(pdf, f"- {item}")
+    def _bullet_lines(self, pdf: FPDF, items: Iterable[str], fallback: str | None = None) -> None:
+        values = [item for item in items if item]
+        if not values and fallback:
+            values = [fallback]
+        for item in values:
+            self._paragraph(pdf, f"- {item}")
+
+    def _color_rows(self, pdf: FPDF, colors: Iterable[Dict[str, Any]]) -> None:
+        for color in colors:
+            hex_code = color.get("hex", "#000000")
+            red, green, blue = self._hex_to_rgb(hex_code)
+            start_x = pdf.get_x()
+            start_y = pdf.get_y() + 1
+            pdf.set_fill_color(red, green, blue)
+            pdf.rect(start_x, start_y, 8, 8, style="F")
+            pdf.set_draw_color(215, 205, 193)
+            pdf.rect(start_x, start_y, 8, 8)
+            pdf.set_xy(start_x + 12, start_y - 1)
+            self._line(
+                pdf,
+                f"{color.get('name', 'Unknown')} {hex_code} ({color.get('percentage', 'N/A')}%)",
+            )
+
+    def _yes_no(self, value: Any) -> str:
+        if value is True:
+            return "Yes"
+        if value is False:
+            return "No"
+        return "N/A"
+
+    def _list_text(self, values: Iterable[str]) -> str:
+        values_list = [value for value in values if value]
+        return ", ".join(values_list) if values_list else "N/A"
+
+    def _hex_to_rgb(self, value: str) -> tuple[int, int, int]:
+        cleaned = value.lstrip("#")
+        if len(cleaned) != 6:
+            return 0, 0, 0
+        return int(cleaned[0:2], 16), int(cleaned[2:4], 16), int(cleaned[4:6], 16)

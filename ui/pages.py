@@ -24,6 +24,7 @@ from src.utils import (
 )
 from ui.components import (
     render_color_palette,
+    render_compare_card,
     render_feature_strip,
     render_hero,
     render_highlight_banner,
@@ -462,17 +463,43 @@ def render_compare_page() -> None:
     winner_text = f"Recommended option: {winner}" if winner != "Tie" else "Recommended option: Tie"
     render_highlight_banner(winner_text, summary["winner_reason"])
 
-    metric_cols = st.columns(4)
-    metric_cols[0].metric(bundle["name_a"], f"{summary['score_a']:.1f}/10")
-    metric_cols[1].metric(bundle["name_b"], f"{summary['score_b']:.1f}/10")
-    metric_cols[2].metric("Fabric Shift", f"{summary['fabric_a']} -> {summary['fabric_b']}")
-    metric_cols[3].metric("Pattern Shift", f"{summary['pattern_a']} -> {summary['pattern_b']}")
+    score_cols = st.columns(2)
+    score_cols[0].metric(bundle["name_a"], f"{summary['score_a']:.1f}/10")
+    score_cols[1].metric(bundle["name_b"], f"{summary['score_b']:.1f}/10")
+
+    compare_summary_cols = st.columns(2)
+    with compare_summary_cols[0]:
+        st.markdown(
+            f"""
+            <div class="compare-summary-card">
+                <p class="compare-summary-label">Fabric Direction</p>
+                <div class="compare-summary-flow">
+                    <div><span>{bundle['name_a']}</span><strong>{summary['fabric_a']}</strong></div>
+                    <div><span>{bundle['name_b']}</span><strong>{summary['fabric_b']}</strong></div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with compare_summary_cols[1]:
+        st.markdown(
+            f"""
+            <div class="compare-summary-card">
+                <p class="compare-summary-label">Pattern Direction</p>
+                <div class="compare-summary-flow">
+                    <div><span>{bundle['name_a']}</span><strong>{summary['pattern_a']}</strong></div>
+                    <div><span>{bundle['name_b']}</span><strong>{summary['pattern_b']}</strong></div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
     left_result, right_result = st.columns(2)
     with left_result:
-        _render_compare_result_card(bundle["analysis_a"], bundle["image_a"], bundle["name_a"])
+        render_compare_card(bundle["name_a"], bundle["analysis_a"], bundle["image_a"])
     with right_result:
-        _render_compare_result_card(bundle["analysis_b"], bundle["image_b"], bundle["name_b"])
+        render_compare_card(bundle["name_b"], bundle["analysis_b"], bundle["image_b"])
 
     list_left, list_right = st.columns(2)
     with list_left:
@@ -521,25 +548,6 @@ def _run_comparison(
         "model_used": analysis_a.get("analysis_metadata", {}).get("model_used", "unknown"),
     }
     st.rerun()
-
-
-def _render_compare_result_card(analysis: Dict[str, Any], image: Image.Image, name: str) -> None:
-    llm = analysis.get("llm_analysis", {})
-    dominant = analysis.get("color_palette", {}).get("dominant_color", {}) or {}
-    st.image(image, caption=name, use_container_width=True)
-    render_key_value_block(
-        name,
-        {
-            "Fabric": llm.get("fabric_type", {}).get("primary", "N/A"),
-            "Pattern": llm.get("pattern", {}).get("type", "N/A"),
-            "Texture": llm.get("texture", {}).get("primary", "N/A"),
-            "Weight": llm.get("texture", {}).get("weight", "N/A"),
-            "Quality": f"{llm.get('quality_assessment', {}).get('score', 'N/A')} / 10",
-            "Dominant Color": dominant.get("name", "N/A"),
-            "Price Tier": llm.get("price_range", {}).get("category", "N/A"),
-        },
-    )
-    render_color_palette(analysis.get("color_palette", {}).get("colors", [])[:3], analysis.get("color_palette", {}).get("harmony_type", "Unknown"))
 
 
 def _render_compare_input(title: str, key_prefix: str) -> tuple[Image.Image | None, str | None]:

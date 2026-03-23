@@ -55,17 +55,17 @@ def render_hero() -> None:
             </div>
             <div class="hero-stats">
                 <div class="stat-card">
-                    <div class="stat-icon">✦</div>
+                    <div class="stat-icon">&#10022;</div>
                     <h4>AI-generated briefing</h4>
                     <p>Use guided model output for richer summary language and commercial positioning.</p>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-icon">▦</div>
+                    <div class="stat-icon">&#9646;</div>
                     <h4>Surface and pattern read</h4>
                     <p>Pick up texture, structure, and repeat cues from the image with a cleaner local read.</p>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-icon">⇄</div>
+                    <div class="stat-icon">&#8644;</div>
                     <h4>Compare with clarity</h4>
                     <p>Place two materials side by side and explain the choice with a more useful summary layer.</p>
                 </div>
@@ -79,10 +79,10 @@ def render_hero() -> None:
 def render_feature_strip() -> None:
     cols = st.columns(4)
     items = [
-        ("◫ Pattern Read", "Spot stripe, plaid, geometric, or textured-solid direction."),
-        ("◌ Surface Feel", "Interpret texture, weight, drape, and finish cues from the image."),
-        ("◈ Color Story", "Extract dominant swatches and the overall harmony direction."),
-        ("↗ Report Flow", "Package findings into a cleaner material brief and downloadable output."),
+        ("Pattern Read", "Spot stripe, plaid, geometric, or textured-solid direction."),
+        ("Surface Feel", "Interpret texture, weight, drape, and finish cues from the image."),
+        ("Color Story", "Extract dominant swatches and the overall harmony direction."),
+        ("Report Flow", "Package findings into a cleaner material brief and downloadable output."),
     ]
     for col, (title, body) in zip(cols, items):
         with col:
@@ -176,6 +176,44 @@ def render_color_palette(colors: Iterable[Dict[str, Any]], harmony: str) -> None
                 """,
                 unsafe_allow_html=True,
             )
+
+
+def render_mini_palette(colors: Iterable[Dict[str, Any]]) -> None:
+    chips = []
+    for color in list(colors)[:4]:
+        chips.append(
+            f"<span class='mini-swatch' title='{color['name']} {color['hex']}' style='background:{color['hex']};'></span>"
+        )
+    if chips:
+        st.markdown(f"<div class='mini-swatch-row'>{''.join(chips)}</div>", unsafe_allow_html=True)
+
+
+def render_compare_card(title: str, analysis: Dict[str, Any], image: Image.Image) -> None:
+    llm = analysis.get("llm_analysis", {})
+    dominant = analysis.get("color_palette", {}).get("dominant_color", {}) or {}
+    quality = llm.get("quality_assessment", {})
+    texture = llm.get("texture", {})
+    fabric = llm.get("fabric_type", {})
+    pattern = llm.get("pattern", {})
+
+    st.image(image, caption=title, use_container_width=True)
+    st.markdown(
+        f"""
+        <div class="compare-card">
+            <h3>{title}</h3>
+            <div class="compare-card-grid">
+                <div><span>Fabric</span><strong>{fabric.get('primary', 'N/A')}</strong></div>
+                <div><span>Pattern</span><strong>{pattern.get('type', 'N/A')}</strong></div>
+                <div><span>Texture</span><strong>{texture.get('primary', 'N/A')}</strong></div>
+                <div><span>Weight</span><strong>{texture.get('weight', 'N/A')}</strong></div>
+                <div><span>Quality</span><strong>{quality.get('score', 'N/A')} / 10</strong></div>
+                <div><span>Color</span><strong>{dominant.get('name', 'N/A')}</strong></div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    render_mini_palette(analysis.get("color_palette", {}).get("colors", []))
 
 
 def render_key_value_block(title: str, rows: Dict[str, Any]) -> None:

@@ -293,6 +293,112 @@ section[data-testid="stSidebar"] .block-container {
     background: rgba(255,250,245,0.88);
 }
 
+.compare-summary-card {
+    padding: 1rem;
+    margin: 0.3rem 0 0.85rem;
+    border-radius: 24px;
+    border: 1px solid var(--line);
+    background: linear-gradient(180deg, rgba(255,251,246,0.92), rgba(246,235,221,0.90));
+    box-shadow: var(--shadow);
+}
+
+.compare-summary-label {
+    margin: 0 0 0.8rem;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
+}
+
+.compare-summary-flow {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.8rem;
+}
+
+.compare-summary-flow div {
+    padding: 0.85rem;
+    border-radius: 18px;
+    background: rgba(255,255,255,0.58);
+    border: 1px solid rgba(53, 35, 22, 0.08);
+}
+
+.compare-summary-flow span {
+    display: block;
+    margin-bottom: 0.3rem;
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.compare-summary-flow strong {
+    display: block;
+    line-height: 1.35;
+    color: var(--ink);
+}
+
+.compare-card {
+    padding: 1rem;
+    margin-top: 0.75rem;
+    border-radius: 24px;
+    border: 1px solid var(--line);
+    background: linear-gradient(180deg, rgba(255,252,247,0.90), rgba(248,237,225,0.90));
+    box-shadow: var(--shadow);
+}
+
+.compare-card h3 {
+    margin: 0 0 0.85rem;
+    font-size: 1.5rem;
+}
+
+.compare-card-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.8rem;
+}
+
+.compare-card-grid div {
+    padding: 0.8rem 0.85rem;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.56);
+    border: 1px solid rgba(53, 35, 22, 0.08);
+}
+
+.compare-card-grid span {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.35rem;
+}
+
+.compare-card-grid strong {
+    display: block;
+    color: var(--ink);
+    line-height: 1.35;
+}
+
+.mini-swatch-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin: 0.8rem 0 1.2rem;
+}
+
+.mini-swatch {
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    display: inline-block;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    box-shadow: 0 6px 12px rgba(61, 43, 28, 0.10);
+}
+
 .swatch {
     width: 64px;
     height: 64px;

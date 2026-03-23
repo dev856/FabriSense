@@ -16,15 +16,15 @@ from ui.pages import (
 from ui.styles import APP_CSS
 
 
-NAV_ITEMS = [
-    "Analyze",
-    "Batch Analysis",
-    "Compare Fabrics",
-    "History",
-    "Fabric Guide",
-    "Care Guide",
-    "About",
-]
+NAV_ITEMS = {
+    "◫ Analyze": "analyze",
+    "▦ Batch Analysis": "batch",
+    "⇄ Compare Fabrics": "compare",
+    "◷ History": "history",
+    "◩ Fabric Guide": "guide",
+    "◌ Care Guide": "care",
+    "✦ About": "about",
+}
 
 
 def main() -> None:
@@ -51,10 +51,11 @@ def main() -> None:
 
     with st.sidebar:
         render_sidebar_brand()
-        page = st.radio("Navigate", NAV_ITEMS, label_visibility="collapsed")
+        page = st.radio("Navigate", list(NAV_ITEMS.keys()), label_visibility="collapsed")
+        page_id = NAV_ITEMS[page]
         st.caption("Built for designers, textile students, sellers, and presentation-ready product demos.")
 
-    if page == "Analyze":
+    if page_id == "analyze":
         render_home_page()
         if st.session_state.analysis and st.session_state.image is not None:
             st.divider()
@@ -66,23 +67,23 @@ def main() -> None:
             )
         return
 
-    if page == "Batch Analysis":
+    if page_id == "batch":
         render_batch_page()
         return
 
-    if page == "Compare Fabrics":
+    if page_id == "compare":
         render_compare_page()
         return
 
-    if page == "History":
+    if page_id == "history":
         render_history_page()
         return
 
-    if page == "Fabric Guide":
+    if page_id == "guide":
         render_fabric_guide_page()
         return
 
-    if page == "Care Guide":
+    if page_id == "care":
         render_care_guide_page()
         return
 
