@@ -1,4 +1,4 @@
-"""Custom CSS for FabriSense."""
+﻿"""Custom CSS for FabriSense."""
 
 APP_CSS = """
 <style>

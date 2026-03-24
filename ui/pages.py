@@ -1,7 +1,8 @@
-"""Page-level rendering for the FabriSense app."""
+﻿"""Page-level rendering for the FabriSense app."""
 
 from __future__ import annotations
 
+from html import escape as html_escape
 from pathlib import Path
 from typing import Any, Dict
 
@@ -121,6 +122,10 @@ def _engine_label(metadata: Dict[str, Any]) -> str:
     return "AI-generated" if metadata.get("analysis_mode") == "ai" else "Local heuristics"
 
 
+def _safe_text(value: Any) -> str:
+    return html_escape("" if value is None else str(value), quote=True)
+
+
 def render_home_page() -> None:
     render_hero()
     render_feature_strip()
@@ -139,7 +144,7 @@ def render_home_page() -> None:
             "Use the guided model path when you want richer summary language, cleaner reasoning, and a more editorial material brief.",
         )
 
-    sample_choice = render_sample_gallery("assets/sample_fabrics")
+    sample_choice = render_sample_gallery("assets/sample_fabrics", state_key="home_selected_sample")
     upload_choice = render_upload_panel(
         title="Material Input",
         prompt="Drop a close-up or flat-lay textile image for analysis",
@@ -167,11 +172,16 @@ def _run_analysis(image, image_name: str, analysis_mode: str) -> None:
             try:
                 analyzer = FabricAnalyzer()
                 analysis = analyzer.analyze(image, mode=analysis_mode)
-                report_bytes = ReportGenerator().generate_pdf(analysis, image)
             except Exception as exc:
                 prefix = "Local analysis failed." if analysis_mode == "local" else "AI-generated analysis failed. Check your `.env` configuration."
                 st.error(f"{prefix} Details: {exc}")
                 return
+
+            report_bytes = None
+            try:
+                report_bytes = ReportGenerator().generate_pdf(analysis, image)
+            except Exception as exc:
+                st.warning(f"Analysis completed, but PDF generation is unavailable. Details: {exc}")
 
     summary = summarize_analysis(analysis, image_name)
     HISTORY.append(history_entry_from_summary(summary))
@@ -398,12 +408,31 @@ def _run_batch_analysis(files: list[Any], analysis_mode: str) -> None:
                 )
                 continue
 
-            image = ImagePreprocessor.load_image(uploaded)
-            analysis = analyzer.analyze(image, mode=analysis_mode)
-            row = summarize_analysis(analysis, uploaded.name)
-            rows.append(row)
-            details.append(row)
-            HISTORY.append(history_entry_from_summary(row))
+            try:
+                image = ImagePreprocessor.load_image(uploaded)
+                analysis = analyzer.analyze(image, mode=analysis_mode)
+                row = summarize_analysis(analysis, uploaded.name)
+                rows.append(row)
+                details.append(row)
+                HISTORY.append(history_entry_from_summary(row))
+            except Exception as exc:
+                rows.append(
+                    {
+                        "timestamp": "",
+                        "image_name": getattr(uploaded, "name", "unknown"),
+                        "mode": analysis_mode,
+                        "engine": "Error",
+                        "fabric": "Analysis failed",
+                        "pattern": str(exc),
+                        "texture": "",
+                        "weight": "",
+                        "dominant_color": "",
+                        "quality_score": 0,
+                        "price_tier": "",
+                        "best_seasons": "",
+                        "summary": "This file failed during analysis, but the batch continued.",
+                    }
+                )
 
     st.session_state.batch_bundle = {
         "rows": rows,
@@ -474,8 +503,8 @@ def render_compare_page() -> None:
             <div class="compare-summary-card">
                 <p class="compare-summary-label">Fabric Direction</p>
                 <div class="compare-summary-flow">
-                    <div><span>{bundle['name_a']}</span><strong>{summary['fabric_a']}</strong></div>
-                    <div><span>{bundle['name_b']}</span><strong>{summary['fabric_b']}</strong></div>
+                    <div><span>{_safe_text(bundle['name_a'])}</span><strong>{_safe_text(summary['fabric_a'])}</strong></div>
+                    <div><span>{_safe_text(bundle['name_b'])}</span><strong>{_safe_text(summary['fabric_b'])}</strong></div>
                 </div>
             </div>
             """,
@@ -487,8 +516,8 @@ def render_compare_page() -> None:
             <div class="compare-summary-card">
                 <p class="compare-summary-label">Pattern Direction</p>
                 <div class="compare-summary-flow">
-                    <div><span>{bundle['name_a']}</span><strong>{summary['pattern_a']}</strong></div>
-                    <div><span>{bundle['name_b']}</span><strong>{summary['pattern_b']}</strong></div>
+                    <div><span>{_safe_text(bundle['name_a'])}</span><strong>{_safe_text(summary['pattern_a'])}</strong></div>
+                    <div><span>{_safe_text(bundle['name_b'])}</span><strong>{_safe_text(summary['pattern_b'])}</strong></div>
                 </div>
             </div>
             """,
@@ -670,3 +699,4 @@ def render_about_page() -> None:
                 "Best Use": "Presentations, educational demos, catalog review, and exploratory textile analysis workflows.",
             },
         )
+

@@ -1,4 +1,4 @@
-from pathlib import Path
+﻿from pathlib import Path
 
 import streamlit as st
 
@@ -17,13 +17,13 @@ from ui.styles import APP_CSS
 
 
 NAV_ITEMS = {
-    "◫ Analyze": "analyze",
-    "▦ Batch Analysis": "batch",
-    "⇄ Compare Fabrics": "compare",
-    "◷ History": "history",
-    "◩ Fabric Guide": "guide",
-    "◌ Care Guide": "care",
-    "✦ About": "about",
+    "Analyze": "analyze",
+    "Batch Analysis": "batch",
+    "Compare Fabrics": "compare",
+    "History": "history",
+    "Fabric Guide": "guide",
+    "Care Guide": "care",
+    "About": "about",
 }
 
 
@@ -48,6 +48,8 @@ def main() -> None:
         st.session_state.comparison_bundle = None
     if "batch_bundle" not in st.session_state:
         st.session_state.batch_bundle = None
+    if "home_selected_sample" not in st.session_state:
+        st.session_state.home_selected_sample = None
 
     with st.sidebar:
         render_sidebar_brand()

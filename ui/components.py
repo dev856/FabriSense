@@ -1,7 +1,8 @@
-"""Reusable Streamlit UI components."""
+﻿"""Reusable Streamlit UI components."""
 
 from __future__ import annotations
 
+from html import escape as html_escape
 from pathlib import Path
 from typing import Any, Dict, Iterable, Optional, Tuple
 
@@ -9,6 +10,17 @@ import streamlit as st
 from PIL import Image
 
 from src.image_preprocessor import ImagePreprocessor
+
+
+def _safe_text(value: Any) -> str:
+    return html_escape("" if value is None else str(value), quote=True)
+
+
+def _safe_hex(value: Any) -> str:
+    text = str(value or "#000000")
+    if text.startswith("#") and len(text) in {4, 7}:
+        return text
+    return "#000000"
 
 
 def render_sidebar_brand() -> None:
@@ -89,7 +101,10 @@ def render_feature_strip() -> None:
             st.markdown(f"<div class='info-card'><h3>{title}</h3><p>{body}</p></div>", unsafe_allow_html=True)
 
 
-def render_sample_gallery(sample_dir: str | Path) -> Optional[Tuple[Image.Image, str]]:
+def render_sample_gallery(
+    sample_dir: str | Path,
+    state_key: str = "selected_sample",
+) -> Optional[Tuple[Image.Image, str]]:
     sample_root = Path(sample_dir)
     sample_paths = sorted(sample_root.glob("*.jpg"))
     if not sample_paths:
@@ -97,14 +112,35 @@ def render_sample_gallery(sample_dir: str | Path) -> Optional[Tuple[Image.Image,
 
     st.markdown("### Curated Samples")
     cols = st.columns(len(sample_paths))
-    chosen: Optional[Tuple[Image.Image, str]] = None
+    selected_name = st.session_state.get(state_key)
+
     for col, path in zip(cols, sample_paths):
         with col:
             st.image(str(path), use_container_width=True)
             label = path.stem.replace("_", " ").title()
-            if st.button(f"Use {label}", key=f"sample-{path.stem}", use_container_width=True):
-                chosen = (Image.open(path).convert("RGB"), path.name)
-    return chosen
+            is_selected = selected_name == path.name
+            button_label = f"Using {label}" if is_selected else f"Use {label}"
+            if st.button(button_label, key=f"sample-{state_key}-{path.stem}", use_container_width=True):
+                st.session_state[state_key] = path.name
+                selected_name = path.name
+
+    if not selected_name:
+        return None
+
+    selected_path = next((path for path in sample_paths if path.name == selected_name), None)
+    if selected_path is None:
+        st.session_state.pop(state_key, None)
+        return None
+
+    info_col, clear_col = st.columns((4, 1))
+    with info_col:
+        st.caption(f"Selected sample: {selected_path.name}")
+    with clear_col:
+        if st.button("Clear", key=f"clear-{state_key}", use_container_width=True):
+            st.session_state.pop(state_key, None)
+            return None
+
+    return Image.open(selected_path).convert("RGB"), selected_path.name
 
 
 def render_upload_panel(
@@ -163,14 +199,14 @@ def render_color_palette(colors: Iterable[Dict[str, Any]], harmony: str) -> None
     cols = st.columns(3)
     for index, color in enumerate(colors):
         with cols[index % 3]:
-            swatch = color["hex"]
+            swatch = _safe_hex(color.get("hex"))
             st.markdown(
                 f"""
                 <div class="color-card">
                     <div class="swatch" style="background:{swatch};"></div>
                     <div>
-                        <h4>{color['name']}</h4>
-                        <p>{swatch} &bull; {color['percentage']}%</p>
+                        <h4>{_safe_text(color.get('name', 'Unknown'))}</h4>
+                        <p>{_safe_text(swatch)} &bull; {_safe_text(color.get('percentage', 'N/A'))}%</p>
                     </div>
                 </div>
                 """,
@@ -181,8 +217,9 @@ def render_color_palette(colors: Iterable[Dict[str, Any]], harmony: str) -> None
 def render_mini_palette(colors: Iterable[Dict[str, Any]]) -> None:
     chips = []
     for color in list(colors)[:4]:
+        hex_code = _safe_hex(color.get("hex"))
         chips.append(
-            f"<span class='mini-swatch' title='{color['name']} {color['hex']}' style='background:{color['hex']};'></span>"
+            f"<span class='mini-swatch' title='{_safe_text(color.get('name', 'Unknown'))} {hex_code}' style='background:{hex_code};'></span>"
         )
     if chips:
         st.markdown(f"<div class='mini-swatch-row'>{''.join(chips)}</div>", unsafe_allow_html=True)
@@ -200,14 +237,14 @@ def render_compare_card(title: str, analysis: Dict[str, Any], image: Image.Image
     st.markdown(
         f"""
         <div class="compare-card">
-            <h3>{title}</h3>
+            <h3>{_safe_text(title)}</h3>
             <div class="compare-card-grid">
-                <div><span>Fabric</span><strong>{fabric.get('primary', 'N/A')}</strong></div>
-                <div><span>Pattern</span><strong>{pattern.get('type', 'N/A')}</strong></div>
-                <div><span>Texture</span><strong>{texture.get('primary', 'N/A')}</strong></div>
-                <div><span>Weight</span><strong>{texture.get('weight', 'N/A')}</strong></div>
-                <div><span>Quality</span><strong>{quality.get('score', 'N/A')} / 10</strong></div>
-                <div><span>Color</span><strong>{dominant.get('name', 'N/A')}</strong></div>
+                <div><span>Fabric</span><strong>{_safe_text(fabric.get('primary', 'N/A'))}</strong></div>
+                <div><span>Pattern</span><strong>{_safe_text(pattern.get('type', 'N/A'))}</strong></div>
+                <div><span>Texture</span><strong>{_safe_text(texture.get('primary', 'N/A'))}</strong></div>
+                <div><span>Weight</span><strong>{_safe_text(texture.get('weight', 'N/A'))}</strong></div>
+                <div><span>Quality</span><strong>{_safe_text(quality.get('score', 'N/A'))} / 10</strong></div>
+                <div><span>Color</span><strong>{_safe_text(dominant.get('name', 'N/A'))}</strong></div>
             </div>
         </div>
         """,

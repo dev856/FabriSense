@@ -1,4 +1,4 @@
-"""PDF report generation for FabriSense analysis results."""
+﻿"""PDF report generation for FabriSense analysis results."""
 
 from __future__ import annotations
 
@@ -7,7 +7,10 @@ import tempfile
 from datetime import datetime
 from typing import Any, Dict, Iterable
 
-from fpdf import FPDF
+try:
+    from fpdf import FPDF
+except ImportError:  # pragma: no cover - depends on local environment
+    FPDF = None
 from PIL import Image
 
 
@@ -15,6 +18,9 @@ class ReportGenerator:
     """Build a richer PDF report for FabriSense analysis results."""
 
     def generate_pdf(self, analysis: Dict[str, Any], image: Image.Image) -> bytes:
+        if FPDF is None:
+            raise RuntimeError("fpdf2 is not installed. Install requirements.txt to enable PDF export.")
+
         pdf = FPDF()
         pdf.set_auto_page_break(auto=True, margin=15)
         pdf.add_page()
@@ -45,7 +51,7 @@ class ReportGenerator:
         pdf.cell(
             0,
             6,
-            f"Mode: {metadata.get('analysis_mode', 'unknown')} | Engine: {engine}",
+            self._sanitize_text(f"Mode: {metadata.get('analysis_mode', 'unknown')} | Engine: {engine}"),
             new_x="LMARGIN",
             new_y="NEXT",
             align="C",
@@ -206,7 +212,7 @@ class ReportGenerator:
         pdf.ln(3)
         pdf.set_font("Helvetica", "B", 14)
         pdf.set_text_color(195, 91, 44)
-        pdf.cell(0, 9, title, new_x="LMARGIN", new_y="NEXT")
+        pdf.cell(0, 9, self._sanitize_text(title), new_x="LMARGIN", new_y="NEXT")
         pdf.set_draw_color(195, 91, 44)
         y = pdf.get_y()
         pdf.line(10, y, 200, y)
@@ -217,7 +223,7 @@ class ReportGenerator:
         pdf.set_draw_color(227, 196, 167)
         x = pdf.get_x()
         y = pdf.get_y()
-        pdf.multi_cell(0, 7, text, border=1, fill=True)
+        pdf.multi_cell(0, 7, self._sanitize_text(text), border=1, fill=True)
         pdf.set_xy(x, max(y, pdf.get_y()))
 
     def _key_value_lines(self, pdf: FPDF, rows: Iterable[tuple[str, Any]]) -> None:
@@ -227,12 +233,12 @@ class ReportGenerator:
     def _line(self, pdf: FPDF, text: str) -> None:
         pdf.set_font("Helvetica", "", 10)
         pdf.set_text_color(45, 45, 45)
-        pdf.multi_cell(0, 6, text)
+        pdf.multi_cell(0, 6, self._sanitize_text(text))
 
     def _paragraph(self, pdf: FPDF, text: str) -> None:
         pdf.set_font("Helvetica", "", 10)
         pdf.set_text_color(45, 45, 45)
-        pdf.multi_cell(0, 6, text)
+        pdf.multi_cell(0, 6, self._sanitize_text(text))
 
     def _bullet_lines(self, pdf: FPDF, items: Iterable[str], fallback: str | None = None) -> None:
         values = [item for item in items if item]
@@ -273,3 +279,23 @@ class ReportGenerator:
         if len(cleaned) != 6:
             return 0, 0, 0
         return int(cleaned[0:2], 16), int(cleaned[2:4], 16), int(cleaned[4:6], 16)
+
+    def _sanitize_text(self, value: Any) -> str:
+        text = str(value or "")
+        replacements = {
+            "\u2018": "'",
+            "\u2019": "'",
+            "\u201c": '"',
+            "\u201d": '"',
+            "\u2013": "-",
+            "\u2014": "-",
+            "\u2022": "-",
+            "\u2026": "...",
+            "\xa0": " ",
+        }
+        for source, target in replacements.items():
+            text = text.replace(source, target)
+        return text.encode("latin-1", errors="ignore").decode("latin-1")
+
+
+
