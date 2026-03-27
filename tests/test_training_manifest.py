@@ -29,6 +29,18 @@ class TrainingManifestTests(unittest.TestCase):
         self.assertEqual(len(records), 3)
         self.assertEqual(records[0]["label"], "cotton")
 
+    def test_discover_class_images_can_filter_classes(self):
+        root = self.make_workspace_dir()
+        for label in ("cotton", "silk", "wool"):
+            class_dir = root / label
+            class_dir.mkdir()
+            (class_dir / f"{label}.jpg").write_bytes(b"fake")
+
+        labels, records = discover_class_images(root, include_classes=["cotton", "wool"], exclude_classes=["wool"])
+
+        self.assertEqual(labels, ["cotton"])
+        self.assertEqual({record["label"] for record in records}, {"cotton"})
+
     def test_stratified_split_keeps_all_records(self):
         records = [
             {"filepath": f"/tmp/cotton_{index}.jpg", "label": "cotton"} for index in range(6)
@@ -68,6 +80,24 @@ class TrainingManifestTests(unittest.TestCase):
         with (output / "train.csv").open("r", encoding="utf-8") as handle:
             rows = list(csv.DictReader(handle))
         self.assertTrue(all("filepath" in row and "label" in row for row in rows))
+
+    def test_create_split_manifests_persists_include_and_exclude_lists(self):
+        workspace = self.make_workspace_dir()
+        root = workspace / "raw"
+        output = workspace / "manifests"
+        for label in ("cotton", "denim", "silk"):
+            class_dir = root / label
+            class_dir.mkdir(parents=True)
+            for index in range(3):
+                (class_dir / f"{label}_{index}.jpg").write_bytes(b"fake")
+
+        create_split_manifests(root, output, include_classes=["cotton", "silk"], exclude_classes=["silk"], seed=9)
+
+        with (output / "labels.json").open("r", encoding="utf-8") as handle:
+            metadata = json.load(handle)
+        self.assertEqual(metadata["labels"], ["cotton"])
+        self.assertEqual(metadata["included_classes"], ["cotton", "silk"])
+        self.assertEqual(metadata["excluded_classes"], ["silk"])
 
 
 if __name__ == "__main__":

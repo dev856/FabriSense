@@ -11,22 +11,22 @@ from typing import Any
 from PIL import Image
 
 
-def _require_training_deps() -> tuple[Any, Any, Any, Any]:
+def _require_training_deps() -> tuple[Any, Any, Any, Any, Any]:
     try:
         import torch
-        from torch.utils.data import DataLoader, Dataset
+        from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
         from torchvision import transforms
     except ImportError as exc:  # pragma: no cover - runtime dependency
         raise ImportError(
             "PyTorch and torchvision are required for training. Install requirements from requirements-ml.txt."
         ) from exc
-    return torch, DataLoader, Dataset, transforms
+    return torch, DataLoader, Dataset, WeightedRandomSampler, transforms
 
 
 class _DatasetProxy:
     @staticmethod
     def build():
-        _, _, Dataset, _ = _require_training_deps()
+        _, _, Dataset, _, _ = _require_training_deps()
 
         class FabricManifestDataset(Dataset):
             def __init__(self, records: list[dict[str, str]], label_to_index: dict[str, int], transform=None):
@@ -53,10 +53,11 @@ def build_dataloaders(
     image_size: int,
     batch_size: int,
     num_workers: int = 0,
+    weighted_sampler: bool = False,
 ) -> tuple[dict[str, Any], dict[str, int], dict[str, int]]:
     """Create train/val/test dataloaders from CSV manifests."""
 
-    _, DataLoader, _, transforms = _require_training_deps()
+    _, DataLoader, _, WeightedRandomSampler, transforms = _require_training_deps()
     dataset_cls = _DatasetProxy.build()
     manifest_path = Path(manifest_dir)
 
@@ -91,15 +92,27 @@ def build_dataloaders(
             label_to_index=label_to_index,
             transform=train_transform if split_name == "train" else eval_transform,
         )
-        loaders[split_name] = DataLoader(
-            dataset,
-            batch_size=batch_size,
-            shuffle=split_name == "train",
-            num_workers=num_workers,
-        )
+
+        loader_kwargs: dict[str, Any] = {
+            "batch_size": batch_size,
+            "num_workers": num_workers,
+        }
         if split_name == "train":
             counter = Counter(record["label"] for record in records)
             class_counts = {label: counter.get(label, 0) for label in metadata["labels"]}
+            if weighted_sampler:
+                sample_weights = [1.0 / max(counter[record["label"]], 1) for record in records]
+                loader_kwargs["sampler"] = WeightedRandomSampler(
+                    weights=sample_weights,
+                    num_samples=len(sample_weights),
+                    replacement=True,
+                )
+            else:
+                loader_kwargs["shuffle"] = True
+        else:
+            loader_kwargs["shuffle"] = False
+
+        loaders[split_name] = DataLoader(dataset, **loader_kwargs)
 
     return loaders, label_to_index, class_counts
 
@@ -107,7 +120,7 @@ def build_dataloaders(
 def compute_class_weights(label_to_index: dict[str, int], class_counts: dict[str, int]):
     """Inverse-frequency class weights for imbalanced datasets."""
 
-    torch, _, _, _ = _require_training_deps()
+    torch, _, _, _, _ = _require_training_deps()
     total = sum(class_counts.values())
     weights = [0.0] * len(label_to_index)
 

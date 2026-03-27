@@ -12,12 +12,19 @@ from typing import Iterable
 SUPPORTED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 
 
-def discover_class_images(dataset_root: str | Path) -> tuple[list[str], list[dict[str, str]]]:
+def discover_class_images(
+    dataset_root: str | Path,
+    include_classes: Iterable[str] | None = None,
+    exclude_classes: Iterable[str] | None = None,
+) -> tuple[list[str], list[dict[str, str]]]:
     """Scan a class-folder dataset and return sorted labels plus records."""
 
     root = Path(dataset_root)
     if not root.exists():
         raise FileNotFoundError(f"Dataset root does not exist: {root}")
+
+    include_lookup = _normalized_class_set(include_classes)
+    exclude_lookup = _normalized_class_set(exclude_classes)
 
     class_dirs = sorted(path for path in root.iterdir() if path.is_dir())
     if not class_dirs:
@@ -27,6 +34,12 @@ def discover_class_images(dataset_root: str | Path) -> tuple[list[str], list[dic
     records: list[dict[str, str]] = []
 
     for class_dir in class_dirs:
+        normalized_name = class_dir.name.casefold()
+        if include_lookup and normalized_name not in include_lookup:
+            continue
+        if normalized_name in exclude_lookup:
+            continue
+
         image_paths = sorted(
             path
             for path in class_dir.rglob("*")
@@ -88,10 +101,16 @@ def create_split_manifests(
     val_ratio: float = 0.15,
     test_ratio: float = 0.15,
     seed: int = 42,
+    include_classes: Iterable[str] | None = None,
+    exclude_classes: Iterable[str] | None = None,
 ) -> dict[str, int]:
     """Scan a dataset, split it, and write CSV manifests plus labels metadata."""
 
-    labels, records = discover_class_images(dataset_root)
+    labels, records = discover_class_images(
+        dataset_root,
+        include_classes=include_classes,
+        exclude_classes=exclude_classes,
+    )
     splits = stratified_split(
         records,
         train_ratio=train_ratio,
@@ -115,6 +134,8 @@ def create_split_manifests(
         "ratios": {"train": train_ratio, "val": val_ratio, "test": test_ratio},
         "counts": {split_name: len(split_records) for split_name, split_records in splits.items()},
         "class_counts": _class_counts(records),
+        "included_classes": sorted(include_classes) if include_classes else [],
+        "excluded_classes": sorted(exclude_classes) if exclude_classes else [],
     }
     with (output_path / "labels.json").open("w", encoding="utf-8") as handle:
         json.dump(metadata, handle, indent=2)
@@ -135,6 +156,12 @@ def _class_counts(records: Iterable[dict[str, str]]) -> dict[str, int]:
     for record in records:
         counts[record["label"]] += 1
     return dict(sorted(counts.items()))
+
+
+def _normalized_class_set(values: Iterable[str] | None) -> set[str]:
+    if values is None:
+        return set()
+    return {value.strip().casefold() for value in values if value.strip()}
 
 
 def _split_counts(count: int, train_ratio: float, val_ratio: float, test_ratio: float) -> tuple[int, int, int]:
