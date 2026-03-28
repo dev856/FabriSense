@@ -1,4 +1,4 @@
-﻿import unittest
+import unittest
 
 from PIL import Image
 
@@ -78,6 +78,23 @@ class DummyLLMClient:
         }
 
 
+class DummyLocalModelClient:
+    model_name = "dummy-local-model"
+
+    def predict(self, image):
+        return {
+            "label": "Cotton",
+            "confidence": 0.82,
+            "top_predictions": [
+                {"label": "Cotton", "confidence": 0.82},
+                {"label": "Linen", "confidence": 0.11},
+                {"label": "Polyester", "confidence": 0.07},
+            ],
+            "checkpoint_path": "artifacts/model_b_resnet18/best_model.pt",
+            "architecture": "resnet18",
+        }
+
+
 class FabricAnalyzerTests(unittest.TestCase):
     def test_analyze_combines_llm_and_cv_results(self):
         image = Image.new("RGB", (100, 100), (180, 80, 60))
@@ -95,12 +112,23 @@ class FabricAnalyzerTests(unittest.TestCase):
         image = Image.new("RGB", (120, 90), (55, 88, 140))
         analyzer = FabricAnalyzer()
 
-        result = analyzer.analyze(image, mode="local")
+        result = analyzer.analyze(image, mode="heuristic")
 
-        self.assertEqual(result["analysis_metadata"]["analysis_mode"], "local")
+        self.assertEqual(result["analysis_metadata"]["analysis_mode"], "heuristic")
         self.assertEqual(result["analysis_metadata"]["model_used"], "local-heuristics")
         self.assertIn("quality_assessment", result["llm_analysis"])
         self.assertIn("overall_summary", result["llm_analysis"])
+
+    def test_trained_local_mode_uses_local_model_prediction(self):
+        image = Image.new("RGB", (120, 90), (55, 88, 140))
+        analyzer = FabricAnalyzer(local_model_client=DummyLocalModelClient())
+
+        result = analyzer.analyze(image, mode="trained")
+
+        self.assertEqual(result["analysis_metadata"]["analysis_mode"], "trained")
+        self.assertEqual(result["analysis_metadata"]["model_used"], "dummy-local-model")
+        self.assertEqual(result["llm_analysis"]["fabric_type"]["primary"], "Cotton")
+        self.assertIn("model_prediction", result["llm_analysis"])
 
 
 if __name__ == "__main__":

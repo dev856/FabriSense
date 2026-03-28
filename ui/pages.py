@@ -13,8 +13,10 @@ from streamlit_lottie import st_lottie
 from src.analyzer import FabricAnalyzer
 from src.history_store import HistoryStore
 from src.image_preprocessor import ImagePreprocessor
+from src.local_model import get_local_model_client
 from src.report_generator import ReportGenerator
 from src.utils import (
+    analysis_engine_label,
     analyses_to_csv,
     compare_fabric_analyses,
     format_analysis_for_display,
@@ -110,16 +112,63 @@ CARE_GUIDE = [
     },
 ]
 
+ANALYSIS_OPTIONS = ["AI-generated", "Local Heuristics", "Local Trained Model"]
 MODE_LABELS = {
     "AI-generated": "ai",
-    "Local Analysis": "local",
+    "Local Heuristics": "heuristic",
+    "Local Trained Model": "trained",
 }
 
 HISTORY = HistoryStore()
 
 
 def _engine_label(metadata: Dict[str, Any]) -> str:
-    return "AI-generated" if metadata.get("analysis_mode") == "ai" else "Local heuristics"
+    return analysis_engine_label(metadata.get("analysis_mode"))
+
+
+def _mode_banner(mode: str) -> tuple[str, str]:
+    if mode == "heuristic":
+        return (
+            "Local heuristic workflow",
+            "Run the rule-based fabric brief without API keys. This mode is best for fast demos, privacy-sensitive work, and no-network usage.",
+        )
+    if mode == "trained":
+        return (
+            "Locally trained model workflow",
+            "Use your trained classifier for fabric-family prediction, then let FabriSense build the rest of the brief with local rules and palette analysis.",
+        )
+    return (
+        "AI-generated workflow",
+        "Use the guided model path when you want richer summary language, cleaner reasoning, and a more editorial material brief.",
+    )
+
+
+def _mode_spinner(mode: str, context: str = "analysis") -> str:
+    if context == "comparison":
+        if mode == "heuristic":
+            return "Comparing local texture and color heuristics..."
+        if mode == "trained":
+            return "Comparing fabrics with the local trained model..."
+        return "Building an AI-generated side-by-side review..."
+    if mode == "heuristic":
+        return "Running local vision heuristics..."
+    if mode == "trained":
+        return "Running the local trained model and building the brief..."
+    return "Building an AI-generated material brief..."
+
+
+def _mode_button_label(mode: str, context: str = "analysis") -> str:
+    if context == "comparison":
+        if mode == "heuristic":
+            return "Run Heuristic Comparison"
+        if mode == "trained":
+            return "Run Local Model Comparison"
+        return "Generate Comparison"
+    if mode == "heuristic":
+        return "Run Heuristic Analysis"
+    if mode == "trained":
+        return "Run Local Model Analysis"
+    return "Generate AI Brief"
 
 
 def _safe_text(value: Any) -> str:
@@ -130,19 +179,11 @@ def render_home_page() -> None:
     render_hero()
     render_feature_strip()
 
-    mode_label = st.radio("Analysis Mode", ["AI-generated", "Local Analysis"], horizontal=True)
+    mode_label = st.radio("Analysis Mode", ANALYSIS_OPTIONS, horizontal=True)
     analysis_mode = MODE_LABELS[mode_label]
 
-    if analysis_mode == "local":
-        render_highlight_banner(
-            "Local-first workflow",
-            "Run a fast baseline material read without API keys. This mode is best for demos, privacy-sensitive work, and no-network usage.",
-        )
-    else:
-        render_highlight_banner(
-            "AI-generated workflow",
-            "Use the guided model path when you want richer summary language, cleaner reasoning, and a more editorial material brief.",
-        )
+    banner_title, banner_body = _mode_banner(analysis_mode)
+    render_highlight_banner(banner_title, banner_body)
 
     sample_choice = render_sample_gallery("assets/sample_fabrics", state_key="home_selected_sample")
     upload_choice = render_upload_panel(
@@ -156,7 +197,7 @@ def render_home_page() -> None:
         return
 
     image, image_name = choice
-    button_label = "Run Local Analysis" if analysis_mode == "local" else "Generate AI Brief"
+    button_label = _mode_button_label(analysis_mode)
     if st.button(button_label, type="primary", use_container_width=True):
         _run_analysis(image=image, image_name=image_name, analysis_mode=analysis_mode)
 
@@ -167,13 +208,13 @@ def _run_analysis(image, image_name: str, analysis_mode: str) -> None:
         if loading_asset:
             st_lottie(loading_asset, height=140, key="loading-animation")
         st.markdown(f"<div class='loading-card'>{get_random_fun_fact()}</div>", unsafe_allow_html=True)
-        spinner_text = "Running local vision heuristics..." if analysis_mode == "local" else "Building an AI-generated material brief..."
+        spinner_text = _mode_spinner(analysis_mode)
         with st.spinner(spinner_text):
             try:
                 analyzer = FabricAnalyzer()
                 analysis = analyzer.analyze(image, mode=analysis_mode)
             except Exception as exc:
-                prefix = "Local analysis failed." if analysis_mode == "local" else "AI-generated analysis failed. Check your `.env` configuration."
+                prefix = "AI-generated analysis failed. Check your `.env` configuration." if analysis_mode == "ai" else "Local analysis failed."
                 st.error(f"{prefix} Details: {exc}")
                 return
 
@@ -250,6 +291,19 @@ def render_results_page(analysis: Dict[str, Any], report_bytes: bytes | None, im
             },
         )
 
+        model_prediction = llm.get("model_prediction", {})
+        if model_prediction:
+            render_list_block(
+                "Model Prediction",
+                [
+                    f"Primary label: {model_prediction.get('label', 'N/A')} ({round(float(model_prediction.get('confidence', 0)) * 100, 1)}%)",
+                    *[
+                        f"Alt: {item.get('label', 'N/A')} ({round(float(item.get('confidence', 0)) * 100, 1)}%)"
+                        for item in model_prediction.get('top_predictions', [])[1:]
+                    ],
+                ],
+            )
+
         render_key_value_block(
             "Quality and Care",
             {
@@ -319,13 +373,18 @@ def render_batch_page() -> None:
         "Analyze a batch of fabric images in one run.",
         "Use batch mode to review seller catalogs, classroom submissions, or sourcing references and export the summary as CSV.",
     )
-    mode_label = st.radio("Batch Mode", ["AI-generated", "Local Analysis"], horizontal=True, key="batch_mode")
+    mode_label = st.radio("Batch Mode", ANALYSIS_OPTIONS, horizontal=True, key="batch_mode")
     analysis_mode = MODE_LABELS[mode_label]
 
-    if analysis_mode == "local":
+    if analysis_mode == "heuristic":
         render_highlight_banner(
-            "Fast catalog pass",
-            "Local batch mode is the best fit for quick sorting, tagging, and review of many images at once.",
+            "Heuristic batch pass",
+            "Use the rule-based local engine for fast sorting, tagging, and review of many images at once.",
+        )
+    elif analysis_mode == "trained":
+        render_highlight_banner(
+            "Local model batch pass",
+            "Run your trained fabric classifier across a set of images while keeping the rest of the brief local and API-free.",
         )
     else:
         render_highlight_banner(
@@ -438,7 +497,7 @@ def _run_batch_analysis(files: list[Any], analysis_mode: str) -> None:
         "rows": rows,
         "details": details,
         "analysis_mode": analysis_mode,
-        "engine": "AI-generated" if analysis_mode == "ai" else "Local heuristics",
+        "engine": analysis_engine_label(analysis_mode),
     }
     st.rerun()
 
@@ -450,13 +509,18 @@ def render_compare_page() -> None:
         "Use the comparison view to separate fabric family, pattern direction, palette shifts, and visual quality without jumping between tabs.",
     )
 
-    mode_label = st.radio("Comparison Mode", ["AI-generated", "Local Analysis"], horizontal=True, key="compare_mode")
+    mode_label = st.radio("Comparison Mode", ANALYSIS_OPTIONS, horizontal=True, key="compare_mode")
     analysis_mode = MODE_LABELS[mode_label]
 
-    if analysis_mode == "local":
+    if analysis_mode == "heuristic":
         render_highlight_banner(
-            "Fast comparison mode",
+            "Fast heuristic comparison",
             "No API setup required. Compare textile structure, color, and quality heuristics immediately.",
+        )
+    elif analysis_mode == "trained":
+        render_highlight_banner(
+            "Local model comparison",
+            "Compare fabrics with the locally trained classifier while keeping the analysis fully offline.",
         )
     else:
         render_highlight_banner(
@@ -471,7 +535,7 @@ def render_compare_page() -> None:
         image_b, name_b = _render_compare_input("Material B", "compare_b")
 
     if image_a is not None and image_b is not None:
-        button_label = "Run Local Comparison" if analysis_mode == "local" else "Generate Comparison"
+        button_label = _mode_button_label(analysis_mode, context="comparison")
         if st.button(button_label, type="primary", use_container_width=True):
             _run_comparison(image_a, name_a, image_b, name_b, analysis_mode)
 
@@ -553,7 +617,7 @@ def _run_comparison(
         st_lottie(loading_asset, height=120, key="comparison-loading")
     st.markdown(f"<div class='loading-card'>{get_random_fun_fact()}</div>", unsafe_allow_html=True)
 
-    spinner_text = "Comparing local texture and color signals..." if analysis_mode == "local" else "Building an AI-generated side-by-side review..."
+    spinner_text = _mode_spinner(analysis_mode, context="comparison")
     with st.spinner(spinner_text):
         try:
             analyzer = FabricAnalyzer()
@@ -561,7 +625,7 @@ def _run_comparison(
             analysis_b = analyzer.analyze(image_b, mode=analysis_mode)
             summary = compare_fabric_analyses(analysis_a, name_a, analysis_b, name_b)
         except Exception as exc:
-            prefix = "Local comparison failed." if analysis_mode == "local" else "AI-generated comparison failed. Check your `.env` configuration."
+            prefix = "AI-generated comparison failed. Check your `.env` configuration." if analysis_mode == "ai" else "Local comparison failed."
             st.error(f"{prefix} Details: {exc}")
             return
 
@@ -676,6 +740,65 @@ def render_care_guide_page() -> None:
             "When unsure, follow the garment care label over generic fabric guidance.",
         ],
     )
+
+
+def render_model_info_page() -> None:
+    model_info = get_local_model_client().describe()
+    render_page_intro(
+        "MODEL STACK",
+        "How FabriSense separates heuristics, trained models, and AI-generated analysis.",
+        "Use this page to explain the technical difference between the local heuristic engine, the locally trained model, and the optional AI-generated workflow.",
+    )
+
+    render_key_value_block(
+        "Current Local Model Status",
+        {
+            "Availability": "Ready" if model_info["available"] else "Not available",
+            "Model Name": model_info["model_name"],
+            "Architecture": model_info["architecture"],
+            "Class Count": model_info["class_count"],
+            "Checkpoint": model_info["checkpoint_path"] or "No checkpoint found in models/ or artifacts/",
+        },
+    )
+
+    left, right = st.columns(2)
+    with left:
+        render_key_value_block(
+            "Local Heuristics",
+            {
+                "What It Uses": "Palette extraction, contrast, edge density, repeat cues, and rule-based scoring.",
+                "Strength": "Fast, explainable, offline, and no extra model files required.",
+                "Limitation": "Fabric-family prediction is approximate because it is inferred from handcrafted rules.",
+            },
+        )
+        render_key_value_block(
+            "Locally Trained Model",
+            {
+                "What It Uses": "A trained classifier predicts fabric family from the uploaded image.",
+                "Strength": "Prediction layer belongs to the project and is measurable with accuracy and macro F1.",
+                "Limitation": "Only the fabric-family field comes from the trained model today; the rest of the brief still uses local rules.",
+            },
+        )
+    with right:
+        render_key_value_block(
+            "AI-generated Analysis",
+            {
+                "What It Uses": "A multimodal provider generates the material brief from the image and prompt.",
+                "Strength": "Best for polished language, richer narrative, and more editorial summaries.",
+                "Limitation": "Depends on provider availability and is not the source of truth for research evaluation.",
+            },
+        )
+        render_list_block(
+            "Recommended Usage",
+            [
+                "Use Local Heuristics for quick offline demos and baseline comparisons.",
+                "Use Locally Trained Model when you want your own classifier in the loop.",
+                "Use AI-generated Analysis when the presentation needs richer natural-language output.",
+            ],
+        )
+
+    if model_info["labels"]:
+        render_list_block("Trained Model Labels", model_info["labels"])
 
 
 def render_about_page() -> None:

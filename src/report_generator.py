@@ -13,6 +13,8 @@ except ImportError:  # pragma: no cover - depends on local environment
     FPDF = None
 from PIL import Image
 
+from src.utils import analysis_engine_label
+
 
 class ReportGenerator:
     """Build a richer PDF report for FabriSense analysis results."""
@@ -31,7 +33,7 @@ class ReportGenerator:
         palette_block = analysis.get("color_palette", {})
         palette = palette_block.get("colors", [])
 
-        engine = "AI-generated" if metadata.get("analysis_mode") == "ai" else "Local heuristics"
+        engine = analysis_engine_label(metadata.get("analysis_mode"))
         dominant = palette_block.get("dominant_color", {}) or {}
 
         pdf.set_font("Helvetica", "B", 22)

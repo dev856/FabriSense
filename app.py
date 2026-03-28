@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 
 import streamlit as st
 
@@ -11,6 +11,7 @@ from ui.pages import (
     render_fabric_guide_page,
     render_history_page,
     render_home_page,
+    render_model_info_page,
     render_results_page,
 )
 from ui.styles import APP_CSS
@@ -23,6 +24,7 @@ NAV_ITEMS = {
     "History": "history",
     "Fabric Guide": "guide",
     "Care Guide": "care",
+    "Models": "models",
     "About": "about",
 }
 
@@ -87,6 +89,10 @@ def main() -> None:
 
     if page_id == "care":
         render_care_guide_page()
+        return
+
+    if page_id == "models":
+        render_model_info_page()
         return
 
     render_about_page()

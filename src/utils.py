@@ -8,7 +8,7 @@ import json
 import random
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, Optional
 
 
 FABRIC_FUN_FACTS = [
@@ -23,8 +23,20 @@ FABRIC_FUN_FACTS = [
 ]
 
 
+ANALYSIS_ENGINE_LABELS = {
+    "ai": "AI-generated",
+    "heuristic": "Local heuristics",
+    "local": "Local heuristics",
+    "trained": "Locally trained model",
+}
+
+
 def get_random_fun_fact() -> str:
     return random.choice(FABRIC_FUN_FACTS)
+
+
+def analysis_engine_label(mode: str | None) -> str:
+    return ANALYSIS_ENGINE_LABELS.get(mode or "", "Unknown engine")
 
 
 def load_json_asset(path: str | Path) -> Optional[Dict[str, Any]]:
@@ -63,11 +75,12 @@ def summarize_analysis(analysis: Dict[str, Any], image_name: str) -> Dict[str, A
     dominant = analysis.get("color_palette", {}).get("dominant_color", {}) or {}
     season_block = llm.get("season_recommendation", {})
 
+    mode = metadata.get("analysis_mode", "unknown")
     return {
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "image_name": image_name,
-        "mode": metadata.get("analysis_mode", "unknown"),
-        "engine": "AI-generated" if metadata.get("analysis_mode") == "ai" else "Local heuristics",
+        "mode": mode,
+        "engine": analysis_engine_label(mode),
         "fabric": llm.get("fabric_type", {}).get("primary", "N/A"),
         "pattern": llm.get("pattern", {}).get("type", "N/A"),
         "texture": llm.get("texture", {}).get("primary", "N/A"),
