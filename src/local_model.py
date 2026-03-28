@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 from functools import lru_cache
 from pathlib import Path
@@ -64,13 +65,17 @@ class LocalFabricModel:
                 "error": str(exc),
             }
 
+        metadata = _read_json_if_exists(self.checkpoint_path.parent / "config.json")
+        metrics = _read_json_if_exists(self.checkpoint_path.parent / "metrics.json")
         return {
             "available": True,
             "checkpoint_path": str(self.checkpoint_path.resolve()),
             "model_name": self.model_name,
-            "architecture": checkpoint.get("architecture", "unknown"),
+            "architecture": checkpoint.get("architecture", metadata.get("architecture", "unknown")),
             "class_count": len(labels),
             "labels": labels,
+            "pretrained": bool(checkpoint.get("pretrained", metadata.get("pretrained", False))),
+            "metrics": metrics,
         }
 
     def predict(self, image: Image.Image) -> Dict[str, Any]:
@@ -107,6 +112,7 @@ class LocalFabricModel:
             "top_predictions": top_predictions,
             "checkpoint_path": str(self.checkpoint_path.resolve()),
             "architecture": runtime["architecture"],
+            "model_name": self.model_name,
         }
 
     def _load_runtime(self) -> dict[str, Any]:
@@ -167,6 +173,63 @@ class LocalFabricModel:
 @lru_cache(maxsize=1)
 def get_local_model_client() -> LocalFabricModel:
     return LocalFabricModel()
+
+
+def list_available_local_models() -> list[Dict[str, Any]]:
+    seen: set[Path] = set()
+    candidates = [Path(candidate) for candidate in DEFAULT_CHECKPOINT_CANDIDATES]
+    artifacts_dir = Path("artifacts")
+    if artifacts_dir.exists():
+        candidates.extend(sorted(artifacts_dir.glob("*/best_model.pt")))
+    models_dir = Path("models")
+    if models_dir.exists():
+        candidates.extend(sorted(models_dir.glob("**/best_model.pt")))
+
+    entries: list[Dict[str, Any]] = []
+    for checkpoint_path in candidates:
+        resolved = checkpoint_path.resolve()
+        if resolved in seen or not checkpoint_path.exists():
+            continue
+        seen.add(resolved)
+
+        config = _read_json_if_exists(checkpoint_path.parent / "config.json")
+        metrics = _read_json_if_exists(checkpoint_path.parent / "metrics.json")
+        label_map = config.get("label_to_index", {}) if config else {}
+        labels = [label for label, _ in sorted(label_map.items(), key=lambda item: item[1])]
+        architecture = config.get("architecture", "unknown") if config else "unknown"
+        pretrained = bool(config.get("pretrained", False)) if config else False
+        macro_f1 = metrics.get("macro_f1") if metrics else None
+        accuracy = metrics.get("accuracy") if metrics else None
+        display_name = checkpoint_path.parent.name
+        if architecture != "unknown":
+            display_name = f"{display_name} | {architecture}"
+        if macro_f1 is not None:
+            display_name = f"{display_name} | macro F1 {macro_f1:.3f}"
+
+        entries.append(
+            {
+                "display_name": display_name,
+                "checkpoint_path": str(checkpoint_path.resolve()),
+                "model_name": checkpoint_path.parent.name,
+                "architecture": architecture,
+                "pretrained": pretrained,
+                "metrics": metrics,
+                "class_count": len(labels),
+                "labels": labels,
+            }
+        )
+
+    entries.sort(key=lambda item: item.get("metrics", {}).get("macro_f1", -1), reverse=True)
+    return entries
+
+
+def _read_json_if_exists(path: Path) -> Dict[str, Any]:
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
 
 
 def _require_torch_and_transforms():

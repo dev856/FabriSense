@@ -13,7 +13,7 @@ from streamlit_lottie import st_lottie
 from src.analyzer import FabricAnalyzer
 from src.history_store import HistoryStore
 from src.image_preprocessor import ImagePreprocessor
-from src.local_model import get_local_model_client
+from src.local_model import LocalFabricModel, get_local_model_client, list_available_local_models
 from src.report_generator import ReportGenerator
 from src.utils import (
     analysis_engine_label,
@@ -171,6 +171,31 @@ def _mode_button_label(mode: str, context: str = "analysis") -> str:
     return "Generate AI Brief"
 
 
+def _available_local_models() -> list[Dict[str, Any]]:
+    return list_available_local_models()
+
+
+def _render_local_model_selector(key: str) -> str | None:
+    models = _available_local_models()
+    if not models:
+        st.warning("No trained local checkpoints were found in models/ or artifacts/.")
+        return None
+
+    labels = [item["display_name"] for item in models]
+    selected_label = st.selectbox("Choose trained model", labels, key=key)
+    selected_model = models[labels.index(selected_label)]
+    metrics = selected_model.get("metrics", {}) or {}
+    accuracy = metrics.get("accuracy")
+    macro_f1 = metrics.get("macro_f1")
+    caption_parts = [f"Architecture: {selected_model['architecture']}"]
+    if accuracy is not None:
+        caption_parts.append(f"Accuracy: {accuracy:.3f}")
+    if macro_f1 is not None:
+        caption_parts.append(f"Macro F1: {macro_f1:.3f}")
+    st.caption(" | ".join(caption_parts))
+    return selected_model["checkpoint_path"]
+
+
 def _safe_text(value: Any) -> str:
     return html_escape("" if value is None else str(value), quote=True)
 
@@ -197,12 +222,23 @@ def render_home_page() -> None:
         return
 
     image, image_name = choice
+    selected_checkpoint = _render_local_model_selector("home_trained_model") if analysis_mode == "trained" else None
     button_label = _mode_button_label(analysis_mode)
-    if st.button(button_label, type="primary", use_container_width=True):
-        _run_analysis(image=image, image_name=image_name, analysis_mode=analysis_mode)
+    if st.button(
+        button_label,
+        type="primary",
+        use_container_width=True,
+        disabled=analysis_mode == "trained" and not selected_checkpoint,
+    ):
+        _run_analysis(
+            image=image,
+            image_name=image_name,
+            analysis_mode=analysis_mode,
+            checkpoint_path=selected_checkpoint,
+        )
 
 
-def _run_analysis(image, image_name: str, analysis_mode: str) -> None:
+def _run_analysis(image, image_name: str, analysis_mode: str, checkpoint_path: str | None = None) -> None:
     with st.container():
         loading_asset = load_json_asset("assets/lottie_loading.json")
         if loading_asset:
@@ -211,7 +247,7 @@ def _run_analysis(image, image_name: str, analysis_mode: str) -> None:
         spinner_text = _mode_spinner(analysis_mode)
         with st.spinner(spinner_text):
             try:
-                analyzer = FabricAnalyzer()
+                analyzer = FabricAnalyzer(local_model_client=LocalFabricModel(checkpoint_path) if checkpoint_path else None)
                 analysis = analyzer.analyze(image, mode=analysis_mode)
             except Exception as exc:
                 prefix = "AI-generated analysis failed. Check your `.env` configuration." if analysis_mode == "ai" else "Local analysis failed."
@@ -296,13 +332,16 @@ def render_results_page(analysis: Dict[str, Any], report_bytes: bytes | None, im
             render_list_block(
                 "Model Prediction",
                 [
+                    f"Model: {model_prediction.get('model_name', 'N/A')} ({model_prediction.get('architecture', 'N/A')})",
                     f"Primary label: {model_prediction.get('label', 'N/A')} ({round(float(model_prediction.get('confidence', 0)) * 100, 1)}%)",
                     *[
                         f"Alt: {item.get('label', 'N/A')} ({round(float(item.get('confidence', 0)) * 100, 1)}%)"
                         for item in model_prediction.get('top_predictions', [])[1:]
                     ],
+                    f"Checkpoint: {model_prediction.get('checkpoint_path', 'N/A')}",
                 ],
             )
+            st.caption("Trained-model confidence is a softmax score. It can still be overconfident on images unlike the training set.")
 
         render_key_value_block(
             "Quality and Care",
@@ -399,8 +438,14 @@ def render_batch_page() -> None:
         key="batch_upload",
     )
 
-    if files and st.button("Run Batch Analysis", type="primary", use_container_width=True):
-        _run_batch_analysis(files, analysis_mode)
+    selected_checkpoint = _render_local_model_selector("batch_trained_model") if analysis_mode == "trained" else None
+    if files and st.button(
+        "Run Batch Analysis",
+        type="primary",
+        use_container_width=True,
+        disabled=analysis_mode == "trained" and not selected_checkpoint,
+    ):
+        _run_batch_analysis(files, analysis_mode, checkpoint_path=selected_checkpoint)
 
     bundle = st.session_state.batch_bundle
     if not bundle:
@@ -435,7 +480,7 @@ def render_batch_page() -> None:
             )
 
 
-def _run_batch_analysis(files: list[Any], analysis_mode: str) -> None:
+def _run_batch_analysis(files: list[Any], analysis_mode: str, checkpoint_path: str | None = None) -> None:
     loading_asset = load_json_asset("assets/lottie_loading.json")
     if loading_asset:
         st_lottie(loading_asset, height=120, key="batch-loading")
@@ -444,7 +489,7 @@ def _run_batch_analysis(files: list[Any], analysis_mode: str) -> None:
     rows = []
     details = []
     with st.spinner("Running batch analysis across uploaded materials..."):
-        analyzer = FabricAnalyzer()
+        analyzer = FabricAnalyzer(local_model_client=LocalFabricModel(checkpoint_path) if checkpoint_path else None)
         for uploaded in files:
             valid, message = ImagePreprocessor.validate_image(uploaded)
             if not valid:
@@ -534,10 +579,16 @@ def render_compare_page() -> None:
     with right:
         image_b, name_b = _render_compare_input("Material B", "compare_b")
 
+    selected_checkpoint = _render_local_model_selector("compare_trained_model") if analysis_mode == "trained" else None
     if image_a is not None and image_b is not None:
         button_label = _mode_button_label(analysis_mode, context="comparison")
-        if st.button(button_label, type="primary", use_container_width=True):
-            _run_comparison(image_a, name_a, image_b, name_b, analysis_mode)
+        if st.button(
+            button_label,
+            type="primary",
+            use_container_width=True,
+            disabled=analysis_mode == "trained" and not selected_checkpoint,
+        ):
+            _run_comparison(image_a, name_a, image_b, name_b, analysis_mode, checkpoint_path=selected_checkpoint)
 
     bundle = st.session_state.comparison_bundle
     if not bundle:
@@ -611,6 +662,7 @@ def _run_comparison(
     image_b: Image.Image,
     name_b: str,
     analysis_mode: str,
+    checkpoint_path: str | None = None,
 ) -> None:
     loading_asset = load_json_asset("assets/lottie_loading.json")
     if loading_asset:
@@ -620,7 +672,7 @@ def _run_comparison(
     spinner_text = _mode_spinner(analysis_mode, context="comparison")
     with st.spinner(spinner_text):
         try:
-            analyzer = FabricAnalyzer()
+            analyzer = FabricAnalyzer(local_model_client=LocalFabricModel(checkpoint_path) if checkpoint_path else None)
             analysis_a = analyzer.analyze(image_a, mode=analysis_mode)
             analysis_b = analyzer.analyze(image_b, mode=analysis_mode)
             summary = compare_fabric_analyses(analysis_a, name_a, analysis_b, name_b)
@@ -744,6 +796,7 @@ def render_care_guide_page() -> None:
 
 def render_model_info_page() -> None:
     model_info = get_local_model_client().describe()
+    available_models = _available_local_models()
     render_page_intro(
         "MODEL STACK",
         "How FabriSense separates heuristics, trained models, and AI-generated analysis.",
@@ -798,7 +851,22 @@ def render_model_info_page() -> None:
         )
 
     if model_info["labels"]:
-        render_list_block("Trained Model Labels", model_info["labels"])
+        render_list_block("Default Model Labels", model_info["labels"])
+
+    if available_models:
+        for model in available_models:
+            metrics = model.get("metrics", {}) or {}
+            render_key_value_block(
+                model["model_name"],
+                {
+                    "Architecture": model["architecture"],
+                    "Pretrained": model["pretrained"],
+                    "Accuracy": f"{metrics.get('accuracy', 0):.3f}" if metrics.get("accuracy") is not None else "N/A",
+                    "Macro F1": f"{metrics.get('macro_f1', 0):.3f}" if metrics.get("macro_f1") is not None else "N/A",
+                    "Class Count": model["class_count"],
+                    "Checkpoint": model["checkpoint_path"],
+                },
+            )
 
 
 def render_about_page() -> None:
