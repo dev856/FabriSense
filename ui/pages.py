@@ -210,11 +210,14 @@ def render_home_page() -> None:
     banner_title, banner_body = _mode_banner(analysis_mode)
     render_highlight_banner(banner_title, banner_body)
 
-    sample_choice = render_sample_gallery("assets/sample_fabrics", state_key="home_selected_sample")
-    upload_choice = render_upload_panel(
-        title="Material Input",
-        prompt="Drop a close-up or flat-lay textile image for analysis",
-    )
+    input_left, input_right = st.columns((1.05, 0.95))
+    with input_left:
+        upload_choice = render_upload_panel(
+            title="Upload a fabric image",
+            prompt="Drop a close-up or flat-lay textile image for analysis",
+        )
+    with input_right:
+        sample_choice = render_sample_gallery("assets/sample_fabrics", state_key="home_selected_sample")
     choice = upload_choice or sample_choice
 
     if choice is None:
@@ -283,127 +286,175 @@ def render_results_page(analysis: Dict[str, Any], report_bytes: bytes | None, im
     display = format_analysis_for_display(analysis)
     render_metric_band(display)
 
-    left, right = st.columns((0.95, 1.05))
-    with left:
-        st.image(image, caption=image_name, use_container_width=True)
-        if report_bytes:
-            st.download_button(
-                "Download PDF Report",
-                data=report_bytes,
-                file_name=f"{image_name.rsplit('.', 1)[0]}-fabrisense-report.pdf",
-                mime="application/pdf",
-                use_container_width=True,
+    llm = analysis.get("llm_analysis", {})
+    fabric = llm.get("fabric_type", {})
+    pattern = llm.get("pattern", {})
+    texture = llm.get("texture", {})
+    quality = llm.get("quality_assessment", {})
+    care = llm.get("care_instructions", {})
+    season = llm.get("season_recommendation", {})
+    price = llm.get("price_range", {})
+    sustainability = llm.get("sustainability", {})
+    model_prediction = llm.get("model_prediction", {})
+    palette = analysis.get("color_palette", {})
+    interior = llm.get("interior_use", {})
+
+    overview_tab, material_tab, commercial_tab, narrative_tab = st.tabs(
+        ["Overview", "Material Read", "Commercial Fit", "Narrative"]
+    )
+
+    with overview_tab:
+        left, right = st.columns((0.95, 1.05))
+        with left:
+            st.image(image, caption=image_name, use_container_width=True)
+            action_cols = st.columns(2)
+            with action_cols[0]:
+                if report_bytes:
+                    st.download_button(
+                        "Download PDF Report",
+                        data=report_bytes,
+                        file_name=f"{image_name.rsplit('.', 1)[0]}-fabrisense-report.pdf",
+                        mime="application/pdf",
+                        use_container_width=True,
+                    )
+            with action_cols[1]:
+                if st.button("Start New Analysis", use_container_width=True):
+                    st.session_state.analysis = None
+                    st.session_state.report_bytes = None
+                    st.session_state.image = None
+                    st.session_state.image_name = None
+                    st.rerun()
+
+        with right:
+            render_key_value_block(
+                "Material Snapshot",
+                {
+                    "Primary Fabric": fabric.get("primary", "N/A"),
+                    "Subtype": fabric.get("sub_type", "N/A"),
+                    "Estimated Blend": fabric.get("blend_composition", "N/A"),
+                    "Confidence": fabric.get("confidence", "N/A"),
+                    "Pattern": f"{pattern.get('type', 'N/A')} / {pattern.get('sub_type', 'N/A')}",
+                    "Texture": texture.get("primary", "N/A"),
+                    "Hand Feel": texture.get("hand_feel", "N/A"),
+                    "Weight": texture.get("weight", "N/A"),
+                    "Drape": texture.get("drape", "N/A"),
+                },
             )
-        if st.button("Start New Analysis", use_container_width=True):
-            st.session_state.analysis = None
-            st.session_state.report_bytes = None
-            st.session_state.image = None
-            st.session_state.image_name = None
-            st.rerun()
+            render_key_value_block(
+                "Commercial Snapshot",
+                {
+                    "Price Tier": price.get("category", "N/A"),
+                    "USD Range": price.get("estimated_per_meter_usd", "N/A"),
+                    "Best Seasons": ", ".join(season.get("best_seasons", []) or ["N/A"]),
+                    "Eco Score": sustainability.get("eco_score", "N/A"),
+                },
+            )
 
-    with right:
-        llm = analysis.get("llm_analysis", {})
-        fabric = llm.get("fabric_type", {})
-        pattern = llm.get("pattern", {})
-        texture = llm.get("texture", {})
-        quality = llm.get("quality_assessment", {})
-        care = llm.get("care_instructions", {})
-        season = llm.get("season_recommendation", {})
-        price = llm.get("price_range", {})
-        sustainability = llm.get("sustainability", {})
+        render_color_palette(palette.get("colors", []), palette.get("harmony_type", "Unknown"))
 
-        render_key_value_block(
-            "Material Snapshot",
-            {
-                "Primary Fabric": fabric.get("primary", "N/A"),
-                "Subtype": fabric.get("sub_type", "N/A"),
-                "Estimated Blend": fabric.get("blend_composition", "N/A"),
-                "Confidence": fabric.get("confidence", "N/A"),
-                "Pattern": f"{pattern.get('type', 'N/A')} / {pattern.get('sub_type', 'N/A')}",
-                "Texture": texture.get("primary", "N/A"),
-                "Hand Feel": texture.get("hand_feel", "N/A"),
-                "Weight": texture.get("weight", "N/A"),
-                "Drape": texture.get("drape", "N/A"),
-            },
-        )
+    with material_tab:
+        left, right = st.columns(2)
+        with left:
+            render_key_value_block(
+                "Structure and Surface",
+                {
+                    "Primary Fabric": fabric.get("primary", "N/A"),
+                    "Subtype": fabric.get("sub_type", "N/A"),
+                    "Pattern": pattern.get("type", "N/A"),
+                    "Pattern Detail": pattern.get("sub_type", "N/A"),
+                    "Texture": texture.get("primary", "N/A"),
+                    "Hand Feel": texture.get("hand_feel", "N/A"),
+                    "Weight": texture.get("weight", "N/A"),
+                    "Drape": texture.get("drape", "N/A"),
+                },
+            )
+            render_list_block("Quality Factors", quality.get("factors", []))
 
-        model_prediction = llm.get("model_prediction", {})
-        if model_prediction:
-            render_list_block(
-                "Model Prediction",
-                [
-                    f"Model: {model_prediction.get('model_name', 'N/A')} ({model_prediction.get('architecture', 'N/A')})",
-                    f"Primary label: {model_prediction.get('label', 'N/A')} ({round(float(model_prediction.get('confidence', 0)) * 100, 1)}%)",
-                    *[
-                        f"Alt: {item.get('label', 'N/A')} ({round(float(item.get('confidence', 0)) * 100, 1)}%)"
-                        for item in model_prediction.get('top_predictions', [])[1:]
+        with right:
+            if model_prediction:
+                render_list_block(
+                    "Model Prediction",
+                    [
+                        f"Model: {model_prediction.get('model_name', 'N/A')} ({model_prediction.get('architecture', 'N/A')})",
+                        f"Primary label: {model_prediction.get('label', 'N/A')} ({round(float(model_prediction.get('confidence', 0)) * 100, 1)}%)",
+                        *[
+                            f"Alt: {item.get('label', 'N/A')} ({round(float(item.get('confidence', 0)) * 100, 1)}%)"
+                            for item in model_prediction.get('top_predictions', [])[1:]
+                        ],
+                        f"Checkpoint: {model_prediction.get('checkpoint_path', 'N/A')}",
                     ],
-                    f"Checkpoint: {model_prediction.get('checkpoint_path', 'N/A')}",
+                )
+                st.caption("Trained-model confidence is a softmax score. It can still be overconfident on images unlike the training set.")
+            render_list_block(
+                "Styling Suggestions",
+                [
+                    f"{item.get('garment', 'N/A')}: {item.get('style', 'N/A')} for {item.get('target_audience', 'N/A')}"
+                    for item in llm.get("styling_suggestions", [])
                 ],
             )
-            st.caption("Trained-model confidence is a softmax score. It can still be overconfident on images unlike the training set.")
 
-        render_key_value_block(
-            "Quality and Care",
-            {
-                "Quality Score": f"{quality.get('score', 'N/A')} / 10",
-                "Grade": quality.get("grade", "N/A"),
-                "Durability": quality.get("durability_estimate", "N/A"),
-                "Pilling Tendency": quality.get("pilling_tendency", "N/A"),
-                "Washing": care.get("washing", "N/A"),
-                "Drying": care.get("drying", "N/A"),
-                "Ironing": care.get("ironing", "N/A"),
-                "Special Care": care.get("special_care", "N/A"),
-            },
-        )
+    with commercial_tab:
+        left, right = st.columns(2)
+        with left:
+            render_key_value_block(
+                "Quality and Care",
+                {
+                    "Quality Score": f"{quality.get('score', 'N/A')} / 10",
+                    "Grade": quality.get("grade", "N/A"),
+                    "Durability": quality.get("durability_estimate", "N/A"),
+                    "Pilling Tendency": quality.get("pilling_tendency", "N/A"),
+                    "Washing": care.get("washing", "N/A"),
+                    "Drying": care.get("drying", "N/A"),
+                    "Ironing": care.get("ironing", "N/A"),
+                    "Special Care": care.get("special_care", "N/A"),
+                },
+            )
+            render_list_block(
+                "Occasion Suitability",
+                [
+                    f"{item.get('occasion', 'N/A')} ({item.get('suitability_score', 'N/A')}/10): {item.get('note', 'N/A')}"
+                    for item in llm.get("occasion_suitability", [])
+                ],
+            )
 
-        render_key_value_block(
-            "Commercial Fit",
-            {
-                "Best Seasons": ", ".join(season.get("best_seasons", []) or ["N/A"]),
-                "Avoid Seasons": ", ".join(season.get("avoid_seasons", []) or ["N/A"]),
-                "Breathability": season.get("breathability", "N/A"),
-                "Price Tier": price.get("category", "N/A"),
-                "USD Range": price.get("estimated_per_meter_usd", "N/A"),
-                "Value": price.get("value_for_money", "N/A"),
-                "Eco Score": sustainability.get("eco_score", "N/A"),
-                "Impact": sustainability.get("environmental_impact", "N/A"),
-            },
-        )
+        with right:
+            render_key_value_block(
+                "Commercial Fit",
+                {
+                    "Best Seasons": ", ".join(season.get("best_seasons", []) or ["N/A"]),
+                    "Avoid Seasons": ", ".join(season.get("avoid_seasons", []) or ["N/A"]),
+                    "Breathability": season.get("breathability", "N/A"),
+                    "Price Tier": price.get("category", "N/A"),
+                    "USD Range": price.get("estimated_per_meter_usd", "N/A"),
+                    "Value": price.get("value_for_money", "N/A"),
+                    "Eco Score": sustainability.get("eco_score", "N/A"),
+                    "Impact": sustainability.get("environmental_impact", "N/A"),
+                },
+            )
+            render_list_block("Interior Uses", interior.get("suggestions", []))
 
-    palette = analysis.get("color_palette", {})
-    render_color_palette(palette.get("colors", []), palette.get("harmony_type", "Unknown"))
-
-    row_a, row_b = st.columns(2)
-    with row_a:
-        render_list_block("Quality Factors", quality.get("factors", []))
-        render_list_block(
-            "Occasion Suitability",
-            [
-                f"{item.get('occasion', 'N/A')} ({item.get('suitability_score', 'N/A')}/10): {item.get('note', 'N/A')}"
-                for item in llm.get("occasion_suitability", [])
-            ],
-        )
-        render_list_block(
-            "Styling Suggestions",
-            [
-                f"{item.get('garment', 'N/A')}: {item.get('style', 'N/A')} for {item.get('target_audience', 'N/A')}"
-                for item in llm.get("styling_suggestions", [])
-            ],
-        )
-
-    with row_b:
-        interior = llm.get("interior_use", {})
-        render_list_block("Interior Uses", interior.get("suggestions", []))
-        render_key_value_block(
-            "Narrative Summary",
-            {
-                "Overall Summary": llm.get("overall_summary", "N/A"),
-                "Fun Fact": llm.get("fun_fact", "N/A"),
-                "Interior Notes": interior.get("notes", "N/A"),
-                "Sustainability Notes": sustainability.get("notes", "N/A"),
-            },
-        )
+    with narrative_tab:
+        left, right = st.columns(2)
+        with left:
+            render_key_value_block(
+                "Narrative Summary",
+                {
+                    "Overall Summary": llm.get("overall_summary", "N/A"),
+                    "Fun Fact": llm.get("fun_fact", "N/A"),
+                    "Interior Notes": interior.get("notes", "N/A"),
+                    "Sustainability Notes": sustainability.get("notes", "N/A"),
+                },
+            )
+        with right:
+            render_list_block(
+                "Decision Notes",
+                [
+                    f"Blend estimate: {fabric.get('blend_composition', 'N/A')}",
+                    f"Dominant color: {palette.get('dominant_color', {}).get('name', 'N/A')}",
+                    f"Pattern direction: {pattern.get('type', 'N/A')}",
+                    f"Commercial value: {price.get('value_for_money', 'N/A')}",
+                ],
+            )
 
 
 def render_batch_page() -> None:

@@ -110,14 +110,25 @@ def render_sample_gallery(
     if not sample_paths:
         return None
 
-    st.markdown("### Curated Samples")
-    cols = st.columns(len(sample_paths))
+    st.markdown(
+        """
+        <div class="input-section-head">
+            <p class="eyebrow">Sample Library</p>
+            <h3>Use a curated textile reference</h3>
+            <p>Start quickly with one of the built-in swatches and switch anytime.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
     selected_name = st.session_state.get(state_key)
 
-    for col, path in zip(cols, sample_paths):
+    cols = st.columns(3)
+    for index, path in enumerate(sample_paths):
+        col = cols[index % 3]
         with col:
             st.image(str(path), use_container_width=True)
             label = path.stem.replace("_", " ").title()
+            st.markdown(f"<p class='sample-card-title'>{label}</p>", unsafe_allow_html=True)
             is_selected = selected_name == path.name
             button_label = f"Using {label}" if is_selected else f"Use {label}"
             if st.button(button_label, key=f"sample-{state_key}-{path.stem}", use_container_width=True):
@@ -148,7 +159,16 @@ def render_upload_panel(
     prompt: str = "Upload a close-up or flat-lay textile image",
     key: str | None = None,
 ) -> Optional[Tuple[Image.Image, str]]:
-    st.markdown(f"### {title}")
+    st.markdown(
+        f"""
+        <div class="input-section-head">
+            <p class="eyebrow">Image Upload</p>
+            <h3>{_safe_text(title)}</h3>
+            <p>Drop a flat-lay, close-up, or catalog crop to generate a material read.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
     st.markdown("<div class='upload-shell'>", unsafe_allow_html=True)
     uploaded = st.file_uploader(
         prompt,
