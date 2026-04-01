@@ -115,6 +115,20 @@ section[data-testid="stSidebar"] .block-container {
     max-width: 52rem;
 }
 
+.input-section-head {
+    margin-bottom: 0.65rem;
+}
+
+.input-section-head h3 {
+    margin: 0;
+    font-size: 1.45rem;
+}
+
+.input-section-head p:last-child {
+    margin: 0.35rem 0 0;
+    color: var(--muted);
+}
+
 .hero-shell {
     position: relative;
     overflow: hidden;
@@ -262,9 +276,17 @@ section[data-testid="stSidebar"] .block-container {
 }
 
 .upload-shell {
-    padding: 0.35rem 0.55rem 0.55rem;
-    margin-bottom: 0.4rem;
+    padding: 0.7rem 0.8rem 0.8rem;
+    margin-bottom: 0.75rem;
     background: linear-gradient(180deg, rgba(255,255,255,0.44), rgba(255,244,232,0.68));
+}
+
+.sample-card-title {
+    margin: 0.45rem 0 0.55rem;
+    font-size: 0.92rem;
+    font-weight: 800;
+    color: var(--ink);
+    text-align: center;
 }
 
 .loading-card,
@@ -434,8 +456,35 @@ div[data-baseweb="input"] > div,
     gap: 0.5rem;
 }
 
-.stRadio label {
+.stRadio [role="radiogroup"] label {
     border-radius: 999px;
+    padding: 0.2rem 0.75rem 0.2rem 0.35rem;
+    background: rgba(255, 250, 243, 0.58);
+    border: 1px solid rgba(53, 35, 22, 0.08);
+}
+
+section[data-testid="stSidebar"] .stRadio [role="radiogroup"] label {
+    background: rgba(255, 255, 255, 0.52);
+}
+
+.stTabs [data-baseweb="tab-list"] {
+    gap: 0.55rem;
+    margin-bottom: 0.8rem;
+}
+
+.stTabs [data-baseweb="tab"] {
+    height: auto;
+    padding: 0.7rem 1rem;
+    border-radius: 999px;
+    background: rgba(255, 251, 246, 0.74);
+    border: 1px solid rgba(53, 35, 22, 0.08);
+    color: var(--muted);
+    font-weight: 800;
+}
+
+.stTabs [aria-selected="true"] {
+    background: linear-gradient(135deg, rgba(181,83,42,0.14), rgba(139,63,30,0.18));
+    color: var(--accent-deep);
 }
 
 hr {
@@ -458,6 +507,10 @@ hr {
 
     .page-intro h2 {
         font-size: 1.9rem;
+    }
+
+    .stTabs [data-baseweb="tab-list"] {
+        flex-wrap: wrap;
     }
 }
 </style>
