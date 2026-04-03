@@ -1,6 +1,13 @@
 import unittest
 
-from src.utils import analysis_engine_label, compare_fabric_analyses, summarize_analysis
+from src.utils import (
+    analysis_engine_label,
+    classification_report_rows,
+    compare_fabric_analyses,
+    model_prediction_margin,
+    model_prediction_warnings,
+    summarize_analysis,
+)
 
 
 class UtilsTests(unittest.TestCase):
@@ -49,6 +56,16 @@ class UtilsTests(unittest.TestCase):
                 "quality_assessment": {"score": 7.3},
                 "price_range": {"category": "Mid-range"},
                 "season_recommendation": {"best_seasons": ["Spring"]},
+                "model_prediction": {
+                    "label": "Cotton",
+                    "confidence": 0.82,
+                    "top_predictions": [
+                        {"label": "Cotton", "confidence": 0.82},
+                        {"label": "Linen", "confidence": 0.12},
+                    ],
+                    "model_name": "model_b_resnet18",
+                    "architecture": "resnet18",
+                },
                 "overall_summary": "Test summary",
             },
             "analysis_metadata": {"analysis_mode": "trained"},
@@ -59,6 +76,38 @@ class UtilsTests(unittest.TestCase):
 
         self.assertEqual(summary["engine"], "Locally trained model")
         self.assertEqual(summary["fabric"], "Cotton")
+        self.assertEqual(summary["predicted_label"], "Cotton")
+        self.assertEqual(summary["prediction_margin"], 0.7)
+        self.assertEqual(summary["review_flag"], "")
+
+    def test_model_prediction_warnings_flags_low_confidence_and_ambiguity(self):
+        prediction = {
+            "confidence": 0.41,
+            "top_predictions": [
+                {"label": "Cotton", "confidence": 0.41},
+                {"label": "Linen", "confidence": 0.35},
+            ],
+        }
+
+        warnings = model_prediction_warnings(prediction)
+
+        self.assertEqual(model_prediction_margin(prediction), 0.06)
+        self.assertEqual(len(warnings), 2)
+        self.assertTrue(any("Low confidence" in item for item in warnings))
+        self.assertTrue(any("close together" in item for item in warnings))
+
+    def test_classification_report_rows_flattens_metrics(self):
+        metrics = {
+            "classification_report": {
+                "Cotton": {"precision": 0.7, "recall": 0.8, "f1-score": 0.75, "support": 10},
+                "macro avg": {"precision": 0.7, "recall": 0.8, "f1-score": 0.75, "support": 10},
+                "accuracy": 0.75,
+            }
+        }
+
+        rows = classification_report_rows(metrics)
+
+        self.assertEqual(rows, [{"label": "Cotton", "precision": 0.7, "recall": 0.8, "f1_score": 0.75, "support": 10}])
 
 
 if __name__ == "__main__":

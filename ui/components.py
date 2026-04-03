@@ -126,12 +126,12 @@ def render_sample_gallery(
     for index, path in enumerate(sample_paths):
         col = cols[index % 3]
         with col:
-            st.image(str(path), use_container_width=True)
+            st.image(str(path), width="stretch")
             label = path.stem.replace("_", " ").title()
             st.markdown(f"<p class='sample-card-title'>{label}</p>", unsafe_allow_html=True)
             is_selected = selected_name == path.name
             button_label = f"Using {label}" if is_selected else f"Use {label}"
-            if st.button(button_label, key=f"sample-{state_key}-{path.stem}", use_container_width=True):
+            if st.button(button_label, key=f"sample-{state_key}-{path.stem}", width="stretch"):
                 st.session_state[state_key] = path.name
                 selected_name = path.name
 
@@ -147,7 +147,7 @@ def render_sample_gallery(
     with info_col:
         st.caption(f"Selected sample: {selected_path.name}")
     with clear_col:
-        if st.button("Clear", key=f"clear-{state_key}", use_container_width=True):
+        if st.button("Clear", key=f"clear-{state_key}", width="stretch"):
             st.session_state.pop(state_key, None)
             return None
 
@@ -187,7 +187,7 @@ def render_upload_panel(
 
     image = ImagePreprocessor.load_image(uploaded)
     st.caption(message)
-    st.image(ImagePreprocessor.resize_for_display(image), caption=uploaded.name, use_container_width=True)
+    st.image(ImagePreprocessor.resize_for_display(image), caption=uploaded.name, width="stretch")
     return image, uploaded.name
 
 
@@ -253,7 +253,7 @@ def render_compare_card(title: str, analysis: Dict[str, Any], image: Image.Image
     fabric = llm.get("fabric_type", {})
     pattern = llm.get("pattern", {})
 
-    st.image(image, caption=title, use_container_width=True)
+    st.image(image, caption=title, width="stretch")
     st.markdown(
         f"""
         <div class="compare-card">

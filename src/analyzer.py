@@ -15,6 +15,17 @@ from src.local_model import LocalFabricModel, get_local_model_client
 from src.prompt_templates import FABRIC_ANALYSIS_PROMPT
 
 
+DEFAULT_DOMINANT_COLOR = {"name": "Unknown", "hex": "#888888", "rgb": (136, 136, 136)}
+QUALITY_SCORE_BONUS_FABRICS = {"Denim", "Wool Blend", "Wool"}
+STRUCTURED_FABRICS = {"Denim", "Wool Blend", "Wool", "Leather"}
+DELICATE_FABRICS = {"Silk Blend", "Silk", "Satin"}
+HIGH_PILLING_FABRICS = {"Wool Blend", "Wool", "Fleece", "Chenille"}
+MEDIUM_PILLING_FABRICS = {"Cotton Blend", "Polyester Blend", "Linen Blend", "Cotton", "Polyester", "Linen", "Viscose"}
+NATURAL_FIBER_FABRICS = {"Cotton Blend", "Linen Blend", "Wool Blend", "Denim", "Cotton", "Linen", "Wool", "Terrycloth"}
+SHEEN_HEAVY_FABRICS = {"Silk Blend", "Silk", "Satin", "Velvet"}
+INTERIOR_FRIENDLY_LIGHTWEIGHTS = {"Cotton Blend", "Linen Blend", "Cotton", "Linen", "Terrycloth"}
+
+
 class FabricAnalyzer:
     """Run end-to-end analysis for a fabric image."""
 
@@ -61,6 +72,31 @@ class FabricAnalyzer:
             analysis_body = self.llm_client.analyze_image(enhanced, FABRIC_ANALYSIS_PROMPT)
             model_used = self.llm_client.provider
 
+        return self._build_analysis_result(
+            analysis_body=analysis_body,
+            color_palette=color_palette,
+            harmony=harmony,
+            image_info=image_info,
+            model_used=model_used,
+            analysis_mode=normalized_mode,
+        )
+
+    def _normalize_mode(self, mode: str) -> str:
+        if mode in {"local", "heuristic"}:
+            return "heuristic"
+        if mode == "trained":
+            return "trained"
+        return "ai"
+
+    def _build_analysis_result(
+        self,
+        analysis_body: Dict[str, Any],
+        color_palette: list[dict],
+        harmony: str,
+        image_info: Dict[str, Any],
+        model_used: str,
+        analysis_mode: str,
+    ) -> Dict[str, Any]:
         return {
             "llm_analysis": analysis_body,
             "color_palette": {
@@ -71,69 +107,36 @@ class FabricAnalyzer:
             "image_info": image_info,
             "analysis_metadata": {
                 "model_used": model_used,
-                "analysis_mode": normalized_mode,
+                "analysis_mode": analysis_mode,
                 "color_clusters": len(color_palette),
             },
         }
 
-    def _normalize_mode(self, mode: str) -> str:
-        if mode in {"local", "heuristic"}:
-            return "heuristic"
-        if mode == "trained":
-            return "trained"
-        return "ai"
-
     def _analyze_locally(self, image: Image.Image, palette: list[dict], harmony: str) -> Dict[str, Any]:
-        metrics = self._compute_visual_metrics(image)
-        dominant = palette[0] if palette else {"name": "Unknown", "hex": "#888888", "rgb": (136, 136, 136)}
-
-        pattern = self._infer_pattern(metrics, palette)
-        texture = self._infer_texture(metrics)
-        fabric = self._infer_fabric(metrics, pattern, texture, dominant)
-        quality = self._infer_quality(metrics, fabric)
-        care = self._care_instructions_for(fabric["primary"])
-        seasons = self._season_recommendation(texture, fabric)
-        price = self._price_range_for(fabric["primary"], quality["score"])
-        sustainability = self._sustainability_for(fabric["primary"])
-        occasion = self._occasion_suitability(fabric["primary"], pattern["type"], texture["weight"])
-        styling = self._styling_suggestions(fabric["primary"], pattern["type"], dominant["name"])
-        interior = self._interior_use(fabric["primary"], texture["weight"])
-        fun_fact = self._fun_fact_for(fabric["primary"])
-        summary = self._overall_summary(fabric, pattern, texture, dominant, quality, harmony, source="heuristic")
-
-        return {
-            "fabric_type": fabric,
-            "pattern": pattern,
-            "texture": texture,
-            "quality_assessment": quality,
-            "care_instructions": care,
-            "occasion_suitability": occasion,
-            "season_recommendation": seasons,
-            "price_range": price,
-            "sustainability": sustainability,
-            "styling_suggestions": styling,
-            "interior_use": interior,
-            "fun_fact": fun_fact,
-            "overall_summary": summary,
-        }
+        return self._build_local_analysis(image=image, palette=palette, harmony=harmony)
 
     def _analyze_with_local_model(self, image: Image.Image, palette: list[dict], harmony: str) -> Dict[str, Any]:
-        metrics = self._compute_visual_metrics(image)
-        dominant = palette[0] if palette else {"name": "Unknown", "hex": "#888888", "rgb": (136, 136, 136)}
+        prediction = self.local_model_client.predict(image)
+        return self._build_local_analysis(image=image, palette=palette, harmony=harmony, model_prediction=prediction)
 
+    def _build_local_analysis(
+        self,
+        image: Image.Image,
+        palette: list[dict],
+        harmony: str,
+        model_prediction: Dict[str, Any] | None = None,
+    ) -> Dict[str, Any]:
+        metrics = self._compute_visual_metrics(image)
+        dominant = self._dominant_color(palette)
         pattern = self._infer_pattern(metrics, palette)
         texture = self._infer_texture(metrics)
-        prediction = self.local_model_client.predict(image)
-        fabric = self._fabric_from_model_prediction(prediction)
+        fabric = (
+            self._infer_fabric(metrics, pattern, texture, dominant)
+            if model_prediction is None
+            else self._fabric_from_model_prediction(model_prediction)
+        )
         quality = self._infer_quality(metrics, fabric)
-        care = self._care_instructions_for(fabric["primary"])
-        seasons = self._season_recommendation(texture, fabric)
-        price = self._price_range_for(fabric["primary"], quality["score"])
-        sustainability = self._sustainability_for(fabric["primary"])
-        occasion = self._occasion_suitability(fabric["primary"], pattern["type"], texture["weight"])
-        styling = self._styling_suggestions(fabric["primary"], pattern["type"], dominant["name"])
-        interior = self._interior_use(fabric["primary"], texture["weight"])
-        fun_fact = self._fun_fact_for(fabric["primary"])
+        summary_source = "trained" if model_prediction is not None else "heuristic"
         summary = self._overall_summary(
             fabric,
             pattern,
@@ -141,26 +144,33 @@ class FabricAnalyzer:
             dominant,
             quality,
             harmony,
-            source="trained",
-            model_confidence=prediction["confidence"],
+            source=summary_source,
+            model_confidence=None if model_prediction is None else model_prediction["confidence"],
         )
 
-        return {
+        analysis = {
             "fabric_type": fabric,
             "pattern": pattern,
             "texture": texture,
             "quality_assessment": quality,
-            "care_instructions": care,
-            "occasion_suitability": occasion,
-            "season_recommendation": seasons,
-            "price_range": price,
-            "sustainability": sustainability,
-            "styling_suggestions": styling,
-            "interior_use": interior,
-            "fun_fact": fun_fact,
+            "care_instructions": self._care_instructions_for(fabric["primary"]),
+            "occasion_suitability": self._occasion_suitability(fabric["primary"], pattern["type"], texture["weight"]),
+            "season_recommendation": self._season_recommendation(texture, fabric),
+            "price_range": self._price_range_for(fabric["primary"], quality["score"]),
+            "sustainability": self._sustainability_for(fabric["primary"]),
+            "styling_suggestions": self._styling_suggestions(fabric["primary"], pattern["type"], dominant["name"]),
+            "interior_use": self._interior_use(fabric["primary"], texture["weight"]),
+            "fun_fact": self._fun_fact_for(fabric["primary"]),
             "overall_summary": summary,
-            "model_prediction": prediction,
         }
+        if model_prediction is not None:
+            analysis["model_prediction"] = model_prediction
+        return analysis
+
+    def _dominant_color(self, palette: list[dict]) -> Dict[str, Any]:
+        if palette:
+            return palette[0]
+        return DEFAULT_DOMINANT_COLOR.copy()
 
     def _fabric_from_model_prediction(self, prediction: Dict[str, Any]) -> Dict[str, str]:
         label = prediction["label"]
@@ -310,7 +320,13 @@ class FabricAnalyzer:
             "sheen": sheen,
         }
 
-    def _infer_fabric(self, metrics: Dict[str, float], pattern: Dict[str, str], texture: Dict[str, str], dominant: Dict[str, Any]) -> Dict[str, str]:
+    def _infer_fabric(
+        self,
+        metrics: Dict[str, float],
+        pattern: Dict[str, str],
+        texture: Dict[str, str],
+        dominant: Dict[str, Any],
+    ) -> Dict[str, str]:
         dominant_name = dominant.get("name", "Unknown")
         mean_saturation = metrics["mean_saturation"]
         sheen = texture["sheen"]
@@ -360,7 +376,7 @@ class FabricAnalyzer:
         base_score += min(metrics["contrast"] / 18, 1.3)
         base_score += min(metrics["edge_density"] / 30, 1.0)
         base_score += exposure_balance * 1.2
-        if fabric["primary"] in {"Denim", "Wool Blend", "Wool"}:
+        if fabric["primary"] in QUALITY_SCORE_BONUS_FABRICS:
             base_score += 0.4
         if metrics["highlight_ratio"] > 18:
             base_score -= 0.4
@@ -389,12 +405,12 @@ class FabricAnalyzer:
         else:
             factors.append("Exposure looks balanced enough for a stable local read")
 
-        durability = "High" if fabric["primary"] in {"Denim", "Wool Blend", "Wool", "Leather"} else "Medium"
-        if fabric["primary"] in {"Silk Blend", "Silk", "Satin"}:
+        durability = "High" if fabric["primary"] in STRUCTURED_FABRICS else "Medium"
+        if fabric["primary"] in DELICATE_FABRICS:
             durability = "Low"
 
-        pilling = "High" if fabric["primary"] in {"Wool Blend", "Wool", "Fleece", "Chenille"} else "Low"
-        if fabric["primary"] in {"Cotton Blend", "Polyester Blend", "Linen Blend", "Cotton", "Polyester", "Linen", "Viscose"}:
+        pilling = "High" if fabric["primary"] in HIGH_PILLING_FABRICS else "Low"
+        if fabric["primary"] in MEDIUM_PILLING_FABRICS:
             pilling = "Medium"
 
         return {
@@ -416,7 +432,7 @@ class FabricAnalyzer:
                 "dry_clean_recommended": False,
                 "bleach_safe": False,
             }
-        if fabric_name in {"Silk Blend", "Silk", "Satin"}:
+        if fabric_name in DELICATE_FABRICS:
             return {
                 "washing": "Hand wash or delicate wash in cold water.",
                 "drying": "Air dry away from direct sun.",
@@ -494,7 +510,7 @@ class FabricAnalyzer:
         }
 
     def _sustainability_for(self, fabric_name: str) -> Dict[str, Any]:
-        if fabric_name in {"Cotton Blend", "Linen Blend", "Wool Blend", "Denim", "Cotton", "Linen", "Wool", "Terrycloth"}:
+        if fabric_name in NATURAL_FIBER_FABRICS:
             return {
                 "eco_score": 7,
                 "out_of": 10,
@@ -531,7 +547,7 @@ class FabricAnalyzer:
         }
 
     def _occasion_suitability(self, fabric_name: str, pattern_type: str, weight: str) -> list[dict]:
-        if fabric_name in {"Silk Blend", "Silk", "Satin", "Velvet"}:
+        if fabric_name in SHEEN_HEAVY_FABRICS:
             return [
                 {"occasion": "Formal", "suitability_score": 9, "note": "Smooth surface and sheen fit occasion dressing."},
                 {"occasion": "Party", "suitability_score": 8, "note": "Reflective finish works well under evening lighting."},
@@ -552,7 +568,7 @@ class FabricAnalyzer:
         ]
 
     def _styling_suggestions(self, fabric_name: str, pattern_type: str, dominant_color: str) -> list[dict]:
-        if fabric_name in {"Silk Blend", "Silk", "Satin", "Velvet"}:
+        if fabric_name in SHEEN_HEAVY_FABRICS:
             return [
                 {"garment": "Blouse", "style": "Soft drape with clean tailoring", "target_audience": "Occasion and evening wear"},
                 {"garment": "Slip dress", "style": "Minimal silhouette with sheen-led styling", "target_audience": "Fashion-forward dressing"},
@@ -568,7 +584,7 @@ class FabricAnalyzer:
         ]
 
     def _interior_use(self, fabric_name: str, weight: str) -> Dict[str, Any]:
-        suitable = weight != "Lightweight" or fabric_name in {"Cotton Blend", "Linen Blend", "Cotton", "Linen", "Terrycloth"}
+        suitable = weight != "Lightweight" or fabric_name in INTERIOR_FRIENDLY_LIGHTWEIGHTS
         suggestions = []
         if suitable:
             suggestions = ["Cushion covers", "Curtain panels"]
