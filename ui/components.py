@@ -28,8 +28,8 @@ def render_sidebar_brand() -> None:
         """
         <div class="sidebar-brand-card">
             <p class="sidebar-kicker">FABRISENSE STUDIO</p>
-            <h3>Commercial textile reads in one polished workspace.</h3>
-            <p>Switch between local material heuristics and AI-generated reporting without exposing model internals.</p>
+            <h3>Material analysis, checkpoint evidence, and review workflows in one place.</h3>
+            <p>Move from polished fabric briefs to trained-model benchmarking without leaving the workspace.</p>
         </div>
         """,
         unsafe_allow_html=True,
@@ -57,12 +57,12 @@ def render_hero() -> None:
                 <p class="eyebrow">TEXTILE INTELLIGENCE</p>
                 <h1>Turn a fabric image into a sharp, presentation-ready material brief.</h1>
                 <p class="hero-text">
-                    FabriSense blends visual fabric reading, side-by-side comparison, and PDF-ready reporting in a cleaner commercial workflow.
+                    FabriSense blends fabric analysis, checkpoint inspection, and benchmark-ready review flows in a cleaner product experience.
                 </p>
                 <div class="hero-tags">
                     <span>AI-generated</span>
-                    <span>Local analysis</span>
-                    <span>Fabric comparison</span>
+                    <span>Trained model</span>
+                    <span>Benchmark lab</span>
                 </div>
             </div>
             <div class="hero-stats">
@@ -73,13 +73,13 @@ def render_hero() -> None:
                 </div>
                 <div class="stat-card">
                     <div class="stat-icon">&#9646;</div>
-                    <h4>Surface and pattern read</h4>
-                    <p>Pick up texture, structure, and repeat cues from the image with a cleaner local read.</p>
+                    <h4>Checkpoint evidence</h4>
+                    <p>Surface confidence, top alternatives, and saved review notes directly in the result flow.</p>
                 </div>
                 <div class="stat-card">
                     <div class="stat-icon">&#8644;</div>
-                    <h4>Compare with clarity</h4>
-                    <p>Place two materials side by side and explain the choice with a more useful summary layer.</p>
+                    <h4>Benchmark with clarity</h4>
+                    <p>Compare checkpoints on known splits or uploaded labeled ZIPs without leaving the app.</p>
                 </div>
             </div>
         </section>
