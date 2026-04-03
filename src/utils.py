@@ -39,6 +39,53 @@ def analysis_engine_label(mode: str | None) -> str:
     return ANALYSIS_ENGINE_LABELS.get(mode or "", "Unknown engine")
 
 
+def model_prediction_margin(prediction: Dict[str, Any]) -> float:
+    top_predictions = prediction.get("top_predictions", []) or []
+    if len(top_predictions) < 2:
+        return 0.0
+    first = float(top_predictions[0].get("confidence", 0) or 0)
+    second = float(top_predictions[1].get("confidence", 0) or 0)
+    return round(max(0.0, first - second), 4)
+
+
+def model_prediction_warnings(prediction: Dict[str, Any]) -> list[str]:
+    confidence = float(prediction.get("confidence", 0) or 0)
+    margin = model_prediction_margin(prediction)
+    warnings = []
+
+    if confidence < 0.55:
+        warnings.append("Low confidence prediction. This image should be reviewed manually before using the label as evidence.")
+    elif confidence < 0.8:
+        warnings.append("Moderate confidence prediction. Treat this as directional rather than final ground truth.")
+
+    if margin and margin < 0.15:
+        warnings.append("Top predictions are close together, which suggests class ambiguity in this image.")
+
+    if not warnings:
+        warnings.append("Prediction confidence and ranking look stable for this checkpoint.")
+    return warnings
+
+
+def classification_report_rows(metrics: Dict[str, Any]) -> list[Dict[str, Any]]:
+    report = metrics.get("classification_report", {}) or {}
+    rows = []
+    for label, values in report.items():
+        if label in {"accuracy", "macro avg", "weighted avg"}:
+            continue
+        if not isinstance(values, dict):
+            continue
+        rows.append(
+            {
+                "label": label,
+                "precision": round(float(values.get("precision", 0) or 0), 3),
+                "recall": round(float(values.get("recall", 0) or 0), 3),
+                "f1_score": round(float(values.get("f1-score", 0) or 0), 3),
+                "support": int(values.get("support", 0) or 0),
+            }
+        )
+    return rows
+
+
 def load_json_asset(path: str | Path) -> Optional[Dict[str, Any]]:
     asset_path = Path(path)
     if not asset_path.exists():
@@ -74,6 +121,7 @@ def summarize_analysis(analysis: Dict[str, Any], image_name: str) -> Dict[str, A
     metadata = analysis.get("analysis_metadata", {})
     dominant = analysis.get("color_palette", {}).get("dominant_color", {}) or {}
     season_block = llm.get("season_recommendation", {})
+    prediction = llm.get("model_prediction", {}) or {}
 
     mode = metadata.get("analysis_mode", "unknown")
     return {
@@ -89,6 +137,15 @@ def summarize_analysis(analysis: Dict[str, Any], image_name: str) -> Dict[str, A
         "quality_score": float(llm.get("quality_assessment", {}).get("score", 0) or 0),
         "price_tier": llm.get("price_range", {}).get("category", "N/A"),
         "best_seasons": ", ".join(season_block.get("best_seasons", []) or []),
+        "predicted_label": prediction.get("label", ""),
+        "model_name": prediction.get("model_name", ""),
+        "model_architecture": prediction.get("architecture", ""),
+        "prediction_confidence": round(float(prediction.get("confidence", 0) or 0), 4) if prediction else 0.0,
+        "prediction_margin": model_prediction_margin(prediction) if prediction else 0.0,
+        "review_flag": "Needs review" if prediction and any(
+            "review" in item.lower() or "ambiguity" in item.lower()
+            for item in model_prediction_warnings(prediction)
+        ) else "",
         "summary": llm.get("overall_summary", "N/A"),
     }
 

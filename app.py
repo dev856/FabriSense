@@ -28,37 +28,34 @@ NAV_ITEMS = {
     "About": "about",
 }
 
+SESSION_DEFAULTS = {
+    "analysis": None,
+    "report_bytes": None,
+    "image": None,
+    "image_name": None,
+    "comparison_bundle": None,
+    "batch_bundle": None,
+    "model_benchmark_bundle": None,
+    "uploaded_benchmark_manifest": None,
+    "home_selected_sample": None,
+}
 
-def main() -> None:
-    st.set_page_config(
-        page_title="FabriSense",
-        page_icon=str(Path("assets/favicon.ico")) if Path("assets/favicon.ico").exists() else None,
-        layout="wide",
-        initial_sidebar_state="expanded",
-    )
-    st.markdown(APP_CSS, unsafe_allow_html=True)
 
-    if "analysis" not in st.session_state:
-        st.session_state.analysis = None
-    if "report_bytes" not in st.session_state:
-        st.session_state.report_bytes = None
-    if "image" not in st.session_state:
-        st.session_state.image = None
-    if "image_name" not in st.session_state:
-        st.session_state.image_name = None
-    if "comparison_bundle" not in st.session_state:
-        st.session_state.comparison_bundle = None
-    if "batch_bundle" not in st.session_state:
-        st.session_state.batch_bundle = None
-    if "home_selected_sample" not in st.session_state:
-        st.session_state.home_selected_sample = None
+def _initialize_session_state() -> None:
+    for key, default_value in SESSION_DEFAULTS.items():
+        if key not in st.session_state:
+            st.session_state[key] = default_value
 
+
+def _render_sidebar_navigation() -> str:
     with st.sidebar:
         render_sidebar_brand()
-        page = st.radio("Navigate", list(NAV_ITEMS.keys()), label_visibility="collapsed")
-        page_id = NAV_ITEMS[page]
+        selected_page = st.radio("Navigate", list(NAV_ITEMS.keys()), label_visibility="collapsed")
         st.caption("Built for designers, textile students, sellers, and presentation-ready product demos.")
+    return NAV_ITEMS[selected_page]
 
+
+def _render_selected_page(page_id: str) -> None:
     if page_id == "analyze":
         render_home_page()
         if st.session_state.analysis and st.session_state.image is not None:
@@ -71,31 +68,30 @@ def main() -> None:
             )
         return
 
-    if page_id == "batch":
-        render_batch_page()
-        return
+    page_renderers = {
+        "batch": render_batch_page,
+        "compare": render_compare_page,
+        "history": render_history_page,
+        "guide": render_fabric_guide_page,
+        "care": render_care_guide_page,
+        "models": render_model_info_page,
+        "about": render_about_page,
+    }
+    page_renderers[page_id]()
 
-    if page_id == "compare":
-        render_compare_page()
-        return
 
-    if page_id == "history":
-        render_history_page()
-        return
+def main() -> None:
+    st.set_page_config(
+        page_title="FabriSense",
+        page_icon=str(Path("assets/favicon.ico")) if Path("assets/favicon.ico").exists() else None,
+        layout="wide",
+        initial_sidebar_state="expanded",
+    )
+    st.markdown(APP_CSS, unsafe_allow_html=True)
+    _initialize_session_state()
 
-    if page_id == "guide":
-        render_fabric_guide_page()
-        return
-
-    if page_id == "care":
-        render_care_guide_page()
-        return
-
-    if page_id == "models":
-        render_model_info_page()
-        return
-
-    render_about_page()
+    page_id = _render_sidebar_navigation()
+    _render_selected_page(page_id)
 
 
 if __name__ == "__main__":
