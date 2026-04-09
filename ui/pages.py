@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime
 from html import escape as html_escape
 from pathlib import Path
@@ -326,6 +327,152 @@ def _persist_uploaded_benchmark_zip(uploaded_file: Any) -> Path:
     return target_path
 
 
+def _load_manifest_metadata(manifest_dir: str | Path | None) -> Dict[str, Any]:
+    if not manifest_dir:
+        return {}
+
+    labels_path = Path(manifest_dir) / "labels.json"
+    if not labels_path.exists():
+        return {}
+
+    try:
+        return json.loads(labels_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def _dataset_summary(metadata: Dict[str, Any]) -> Dict[str, str]:
+    if not metadata:
+        return {}
+
+    class_counts = metadata.get("class_counts", {}) or {}
+    total_images = sum(int(value) for value in class_counts.values()) if class_counts else 0
+    summary = {
+        "Dataset Root": metadata.get("dataset_root", "N/A"),
+        "Labels": str(len(metadata.get("labels", []))),
+        "Total Images": str(total_images or sum(int(value) for value in (metadata.get("counts", {}) or {}).values())),
+        "Train / Val / Test": (
+            f"{metadata.get('counts', {}).get('train', 0)} / "
+            f"{metadata.get('counts', {}).get('val', 0)} / "
+            f"{metadata.get('counts', {}).get('test', 0)}"
+        ),
+        "Scope": "Curated subset" if metadata.get("included_classes") else "Full manifest",
+    }
+
+    if class_counts:
+        smallest_label = min(class_counts, key=class_counts.get)
+        largest_label = max(class_counts, key=class_counts.get)
+        summary["Smallest Class"] = f"{smallest_label} ({class_counts[smallest_label]})"
+        summary["Largest Class"] = f"{largest_label} ({class_counts[largest_label]})"
+
+    return summary
+
+
+def _comparison_story_rows() -> list[Dict[str, Any]]:
+    return [
+        {
+            "model": "model_b_resnet18_v2",
+            "architecture": "resnet18",
+            "role": "Best overall",
+            "benchmark": "phase1 curated 10-class",
+            "accuracy": 0.821,
+            "macro_f1": 0.830,
+            "weighted_f1": 0.823,
+        },
+        {
+            "model": "model_c_mobilenet_v3_small_v2",
+            "architecture": "mobilenet_v3_small",
+            "role": "Lightweight option",
+            "benchmark": "phase1 curated 10-class",
+            "accuracy": 0.806,
+            "macro_f1": 0.818,
+            "weighted_f1": 0.808,
+        },
+        {
+            "model": "model_a_scratch_v2",
+            "architecture": "scratch_cnn",
+            "role": "Baseline",
+            "benchmark": "phase1 curated 10-class",
+            "accuracy": 0.316,
+            "macro_f1": 0.438,
+            "weighted_f1": 0.227,
+        },
+    ]
+
+
+def _render_analysis_guide(analysis_mode: str) -> None:
+    mode_title = {
+        "ai": "AI-generated",
+        "heuristic": "Local Heuristics",
+        "trained": "Local Trained Model",
+    }.get(analysis_mode, "Analysis")
+    with st.expander("Guide: choosing an analysis mode", expanded=False):
+        st.markdown(
+            f"""
+Use `{mode_title}` when it matches your goal.
+
+- `AI-generated`: best for polished summaries, richer narrative, and presentation-ready language.
+- `Local Heuristics`: best for fast offline demos and explainable baseline behavior.
+- `Local Trained Model`: best when you want your own benchmarked classifier in the loop.
+
+Recommended flow:
+
+1. Start with `Local Trained Model` for the strongest offline prediction path.
+2. Check confidence warnings and top alternatives in the results.
+3. Switch to `AI-generated` if you want a more editorial brief for presentation.
+4. Use `Compare Fabrics` or `Models` when you need evidence rather than only a single result.
+"""
+        )
+
+
+def _render_results_guide(model_prediction: Dict[str, Any] | None = None) -> None:
+    with st.expander("Guide: how to read these results", expanded=False):
+        lines = [
+            "- `Overview` is the fastest summary for fabric family, texture, quality, and commercial fit.",
+            "- `Material Read` is where you inspect structure, surface behavior, and model evidence.",
+            "- `Commercial Fit` is where you decide whether the fabric makes sense for season, care, and price tier.",
+            "- `Narrative` is the presentation layer for explaining the fabric to a non-technical audience.",
+        ]
+        if model_prediction:
+            lines.extend(
+                [
+                    "- `Model Review` is where you confirm or correct the trained-model prediction.",
+                    "- Confidence is useful, but it is not proof. Read it together with the top alternative labels and the visible fabric cues.",
+                ]
+            )
+        st.markdown("\n".join(lines))
+
+
+def _render_model_guide() -> None:
+    with st.expander("Guide: models, benchmarks, and comparison study", expanded=True):
+        st.markdown(
+            """
+Use this page in three layers.
+
+1. `Curated Phase1 Benchmark`
+   Read the headline comparison on the curated `phase1` 10-class benchmark. This is the cleanest presentation story.
+2. `Checkpoint Leaderboard`
+   Inspect saved checkpoints, metrics, and per-class strengths or weaknesses.
+3. `Benchmark Lab`
+   Run a fair comparison by evaluating multiple checkpoints on the same manifest or on a new uploaded labeled ZIP.
+
+How to explain the study:
+
+- `scratch_cnn` is the learned baseline.
+- `mobilenet_v3_small` is the lightweight deployment candidate.
+- `resnet18` is the best overall local classifier.
+- `AI-generated` mode helps narration, but it is not the benchmark source of truth.
+
+How to compare responsibly:
+
+- Use the same benchmark split for every checkpoint.
+- Prefer `macro F1` over accuracy when class balance is uneven.
+- Mention that the current headline results come from the curated `phase1` 10-class benchmark.
+- If you prepare a new ZIP benchmark, keep it fully unseen relative to training images.
+"""
+        )
+
+
 def _model_entry_for_checkpoint(checkpoint_path: str | None) -> Dict[str, Any] | None:
     if not checkpoint_path:
         return None
@@ -384,6 +531,7 @@ def render_home_page() -> None:
 
     mode_label = st.radio("Analysis Mode", ANALYSIS_OPTIONS, horizontal=True)
     analysis_mode = MODE_LABELS[mode_label]
+    _render_analysis_guide(analysis_mode)
 
     _render_workflow_banner("analysis", analysis_mode)
 
@@ -468,6 +616,7 @@ def render_results_page(analysis: Dict[str, Any], report_bytes: bytes | None, im
     model_prediction = llm.get("model_prediction", {})
     palette = analysis.get("color_palette", {})
     interior = llm.get("interior_use", {})
+    _render_results_guide(model_prediction if model_prediction else None)
 
     tab_labels = ["Overview", "Material Read", "Commercial Fit", "Narrative"]
     if model_prediction:
@@ -1032,6 +1181,7 @@ def render_model_info_page() -> None:
         "How FabriSense separates heuristics, trained models, and AI-generated analysis.",
         "Use this page to explain the technical difference between the local heuristic engine, the locally trained model, and the optional AI-generated workflow.",
     )
+    _render_model_guide()
 
     render_key_value_block(
         "Current Local Model Status",
@@ -1084,6 +1234,12 @@ def render_model_info_page() -> None:
         render_list_block("Default Model Labels", model_info["labels"])
 
     if available_models:
+        st.markdown("### Curated Phase1 Benchmark")
+        st.caption(
+            "These headline results come from the curated `phase1` 10-class benchmark after switching to a group-aware split that keeps same-sample image variants in one split."
+        )
+        st.dataframe(_comparison_story_rows(), width="stretch")
+
         leaderboard_rows = []
         for model in available_models:
             metrics = model.get("metrics", {}) or {}
@@ -1112,6 +1268,14 @@ def render_model_info_page() -> None:
         selected_model = available_models[[model["display_name"] for model in available_models].index(selected_model_name)]
         selected_metrics = selected_model.get("metrics", {}) or {}
         selected_rows = classification_report_rows(selected_metrics)
+        config_path = Path(selected_model["checkpoint_path"]).parent / "config.json"
+        selected_config = {}
+        if config_path.exists():
+            try:
+                selected_config = json.loads(config_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                selected_config = {}
+        selected_manifest_metadata = _load_manifest_metadata(selected_config.get("manifest_dir"))
 
         overview_left, overview_right = st.columns(2)
         with overview_left:
@@ -1135,7 +1299,18 @@ def render_model_info_page() -> None:
                     "Checkpoint": selected_model["checkpoint_path"],
                 },
             )
+            if selected_manifest_metadata:
+                render_key_value_block("Training Dataset", _dataset_summary(selected_manifest_metadata))
         with overview_right:
+            render_key_value_block(
+                "Research Framing",
+                {
+                    "Baseline": "Local Heuristics or scratch CNN",
+                    "Comparison Goal": "Show how transfer learning improves macro F1 on the same benchmark split",
+                    "Presentation Layer": "AI-generated mode adds narrative polish but is not the benchmark source of truth",
+                    "Key Caution": "Read macro F1 together with dataset scope and class balance",
+                },
+            )
             if selected_rows:
                 strongest_rows = sorted(selected_rows, key=lambda row: row["f1_score"], reverse=True)[:5]
                 weakest_rows = sorted(selected_rows, key=lambda row: row["f1_score"])[:5]
@@ -1225,8 +1400,18 @@ def render_model_info_page() -> None:
                 st.caption(
                     f"Manifest labels: {selected_manifest['label_count']} | Counts: {selected_manifest.get('counts', {})}"
                 )
+                class_counts = selected_manifest.get("class_counts", {}) or {}
+                if class_counts:
+                    smallest_label = min(class_counts, key=class_counts.get)
+                    largest_label = max(class_counts, key=class_counts.get)
+                    st.caption(
+                        f"Class balance: smallest={smallest_label} ({class_counts[smallest_label]}) | "
+                        f"largest={largest_label} ({class_counts[largest_label]})"
+                    )
                 if str(selected_manifest.get("display_name", "")).startswith("uploaded::"):
                     st.caption("Uploaded benchmark sets are best evaluated on the `test` split because train/val were mirrored from the uploaded sample.")
+                elif selected_manifest.get("benchmark_mode") == "standard":
+                    st.caption("Prefer curated subsets for headline comparisons when the full dataset is heavily imbalanced.")
 
             if st.button(
                 "Run Checkpoint Benchmark",

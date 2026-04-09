@@ -56,6 +56,43 @@ class TrainingManifestTests(unittest.TestCase):
         self.assertTrue(splits["val"])
         self.assertTrue(splits["test"])
 
+    def test_stratified_split_keeps_grouped_samples_together(self):
+        records = []
+        for label in ("cotton", "silk"):
+            for sample_id in ("sample_a", "sample_b", "sample_c"):
+                for index in range(4):
+                    records.append(
+                        {
+                            "filepath": f"/tmp/{label}/{sample_id}/im_{index}.jpg",
+                            "label": label,
+                            "group_id": sample_id,
+                        }
+                    )
+
+        splits = stratified_split(records, seed=11)
+
+        assignments = {}
+        for split_name, split_records in splits.items():
+            for record in split_records:
+                key = (record["label"], record["group_id"])
+                if key in assignments:
+                    self.assertEqual(assignments[key], split_name)
+                else:
+                    assignments[key] = split_name
+
+        self.assertEqual(len(assignments), 6)
+
+    def test_discover_class_images_assigns_group_ids_from_sample_folders(self):
+        root = self.make_workspace_dir()
+        sample_dir = root / "cotton" / "sample_1"
+        sample_dir.mkdir(parents=True)
+        for index in range(2):
+            (sample_dir / f"im_{index}.jpg").write_bytes(b"fake")
+
+        _, records = discover_class_images(root)
+
+        self.assertEqual({record["group_id"] for record in records}, {"sample_1"})
+
     def test_create_split_manifests_writes_csv_and_metadata(self):
         workspace = self.make_workspace_dir()
         root = workspace / "raw"
