@@ -37,6 +37,8 @@ class ModelBenchmarkTests(unittest.TestCase):
         matching = [item for item in manifests if item["manifest_dir"] == str(manifest_dir.resolve())]
         self.assertEqual(len(matching), 1)
         self.assertEqual(matching[0]["label_count"], 2)
+        self.assertEqual(matching[0]["benchmark_mode"], "standard")
+        self.assertEqual(matching[0]["recommended_split"], "test")
 
     def test_create_uploaded_benchmark_manifest_extracts_nested_zip(self):
         zip_path = self.make_zip_path()

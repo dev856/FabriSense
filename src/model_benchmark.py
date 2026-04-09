@@ -46,6 +46,9 @@ def list_manifest_directories(root: str | Path = "data") -> list[dict[str, Any]]
                 "dataset_root": metadata.get("dataset_root", ""),
                 "label_count": len(metadata.get("labels", [])),
                 "counts": metadata.get("counts", {}),
+                "class_counts": metadata.get("class_counts", {}),
+                "benchmark_mode": metadata.get("benchmark_mode", "standard"),
+                "recommended_split": metadata.get("recommended_split", "test"),
             }
         )
 
@@ -255,7 +258,7 @@ def _write_manifest(path: Path, records: list[dict[str, str]]) -> None:
     with path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=["filepath", "label"])
         writer.writeheader()
-        writer.writerows(records)
+        writer.writerows({"filepath": record["filepath"], "label": record["label"]} for record in records)
 
 
 def _class_counts(records: list[dict[str, str]]) -> dict[str, int]:

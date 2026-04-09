@@ -50,7 +50,13 @@ def discover_class_images(
 
         labels.append(class_dir.name)
         for image_path in image_paths:
-            records.append({"filepath": str(image_path.resolve()), "label": class_dir.name})
+            records.append(
+                {
+                    "filepath": str(image_path.resolve()),
+                    "label": class_dir.name,
+                    "group_id": _group_id_for_image(class_dir, image_path),
+                }
+            )
 
     if not records:
         raise ValueError(f"No supported image files found under dataset root: {root}")
@@ -78,15 +84,23 @@ def stratified_split(
     splits = {"train": [], "val": [], "test": []}
 
     for label, label_records in grouped.items():
-        shuffled = list(label_records)
-        rng.shuffle(shuffled)
-        count = len(shuffled)
+        grouped_samples = _group_records(label_records)
+        shuffled_groups = list(grouped_samples.values())
+        rng.shuffle(shuffled_groups)
 
-        train_count, val_count, test_count = _split_counts(count, train_ratio, val_ratio, test_ratio)
+        sample_count = len(shuffled_groups)
+        train_groups, val_groups, test_groups = _split_counts(sample_count, train_ratio, val_ratio, test_ratio)
 
-        splits["train"].extend(shuffled[:train_count])
-        splits["val"].extend(shuffled[train_count : train_count + val_count])
-        splits["test"].extend(shuffled[train_count + val_count : train_count + val_count + test_count])
+        train_records, remaining_groups = _take_groups_by_count(shuffled_groups, train_groups)
+        val_records, remaining_groups = _take_groups_by_count(remaining_groups, val_groups)
+        test_records, remaining_groups = _take_groups_by_count(remaining_groups, test_groups)
+
+        if remaining_groups:
+            test_records.extend(record for group in remaining_groups for record in group)
+
+        splits["train"].extend(train_records)
+        splits["val"].extend(val_records)
+        splits["test"].extend(test_records)
 
     for split_name in splits:
         rng.shuffle(splits[split_name])
@@ -148,7 +162,7 @@ def _write_manifest(path: Path, records: Iterable[dict[str, str]]) -> None:
         writer = csv.DictWriter(handle, fieldnames=["filepath", "label"])
         writer.writeheader()
         for record in records:
-            writer.writerow(record)
+            writer.writerow({"filepath": record["filepath"], "label": record["label"]})
 
 
 def _class_counts(records: Iterable[dict[str, str]]) -> dict[str, int]:
@@ -162,6 +176,31 @@ def _normalized_class_set(values: Iterable[str] | None) -> set[str]:
     if values is None:
         return set()
     return {value.strip().casefold() for value in values if value.strip()}
+
+
+def _group_id_for_image(class_dir: Path, image_path: Path) -> str:
+    relative_parent = image_path.relative_to(class_dir).parent
+    if str(relative_parent) == ".":
+        return image_path.stem
+    return relative_parent.as_posix()
+
+
+def _group_records(records: Iterable[dict[str, str]]) -> dict[str, list[dict[str, str]]]:
+    groups: dict[str, list[dict[str, str]]] = defaultdict(list)
+    for record in records:
+        group_id = record.get("group_id") or record["filepath"]
+        groups[group_id].append(record)
+    return groups
+
+
+def _take_groups_by_count(
+    grouped_records: list[list[dict[str, str]]],
+    target_group_count: int,
+) -> tuple[list[dict[str, str]], list[list[dict[str, str]]]]:
+    selected_groups = grouped_records[:target_group_count]
+    remaining_groups = grouped_records[target_group_count:]
+    selected_records = [record for group in selected_groups for record in group]
+    return selected_records, remaining_groups
 
 
 def _split_counts(count: int, train_ratio: float, val_ratio: float, test_ratio: float) -> tuple[int, int, int]:
