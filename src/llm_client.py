@@ -1,4 +1,4 @@
-﻿"""Vision LLM client abstraction for Gemini, OpenAI, and Ollama."""
+"""Vision LLM client abstraction for Gemini, OpenAI, and Ollama."""
 
 from __future__ import annotations
 
@@ -12,8 +12,10 @@ from PIL import Image
 try:
     from dotenv import load_dotenv
 except ImportError:  # pragma: no cover - depends on local environment
+
     def load_dotenv() -> None:
         return None
+
 
 from src.image_preprocessor import ImagePreprocessor
 
@@ -70,13 +72,17 @@ class LLMClient:
         if self.provider == "ollama":
             import ollama
 
-            self.client = ollama.Client(host=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"))
+            self.client = ollama.Client(
+                host=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+            )
             self.model_name = "llava:13b"
             return
 
         raise ValueError(f"Unsupported provider: {self.provider}")
 
-    def analyze_image(self, image: Image.Image, prompt: str, max_retries: int = 3) -> Dict[str, Any]:
+    def analyze_image(
+        self, image: Image.Image, prompt: str, max_retries: int = 3
+    ) -> Dict[str, Any]:
         last_error: Optional[str] = None
         attempt_prompt = prompt
 
@@ -92,7 +98,9 @@ class LLMClient:
                 if attempt < max_retries - 1:
                     time.sleep(2**attempt)
 
-        raise RuntimeError(f"LLM analysis failed after {max_retries} attempts. Last error: {last_error}")
+        raise RuntimeError(
+            f"LLM analysis failed after {max_retries} attempts. Last error: {last_error}"
+        )
 
     def _call_api(self, image: Image.Image, prompt: str) -> str:
         if self.provider == "gemini":
@@ -112,13 +120,10 @@ class LLMClient:
                     return response.text
                 except Exception as exc:
                     last_error = exc
-                    message = str(exc).lower()
-                    if "not found" in message or "404" in message or "unsupported" in message:
-                        continue
-                    raise
+                    continue
 
             raise RuntimeError(
-                "No working Gemini model was accepted. Set GEMINI_MODEL in .env to a valid model for your account. "
+                "No working Gemini model was accepted. Set GEMINI_MODEL in .env to a valid vision model for your account. "
                 f"Tried: {', '.join(self.gemini_model_candidates)}. Last error: {last_error}"
             )
 
