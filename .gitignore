@@ -5,9 +5,16 @@ __pycache__/
 
 # C extensions
 *.so
-artifacts/                                                                                                                                                     
-data/fabrics/                                                                                                                                                  
-models/  
+
+# Keep generated training outputs local, but ship the lightweight deploy checkpoint.
+artifacts/*
+!artifacts/model_c_mobilenet_v3_small_v2/
+artifacts/model_c_mobilenet_v3_small_v2/*
+!artifacts/model_c_mobilenet_v3_small_v2/best_model.pt
+!artifacts/model_c_mobilenet_v3_small_v2/config.json
+!artifacts/model_c_mobilenet_v3_small_v2/metrics.json
+data/fabrics/
+models/
 
 # Distribution / packaging
 .Python
