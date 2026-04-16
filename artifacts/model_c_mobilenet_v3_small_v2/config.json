@@ -1,0 +1,31 @@
+{
+  "architecture": "mobilenet_v3_small",
+  "pretrained": true,
+  "epochs": 20,
+  "batch_size": 32,
+  "learning_rate": 0.0003,
+  "weight_decay": 0.0001,
+  "seed": 42,
+  "manifest_dir": "D:\\projects\\FabriSense\\FabriSense\\data\\fabrics\\manifests_phase1",
+  "label_to_index": {
+    "Cotton": 0,
+    "Denim": 1,
+    "Fleece": 2,
+    "Linen": 3,
+    "Nylon": 4,
+    "Polyester": 5,
+    "Silk": 6,
+    "Terrycloth": 7,
+    "Viscose": 8,
+    "Wool": 9
+  },
+  "weighted_sampler": true,
+  "loss_weighting": "class_weights",
+  "label_smoothing": 0.05,
+  "scheduler": "plateau",
+  "scheduler_patience": 2,
+  "scheduler_factor": 0.5,
+  "min_learning_rate": 1e-06,
+  "gradient_clip_norm": 0.0,
+  "early_stopping_patience": 5
+}
