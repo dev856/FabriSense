@@ -11,3 +11,7 @@ streamlit-lottie>=0.0.5
 streamlit-extras>=0.4.0
 fpdf2>=2.7.0
 plotly>=5.22.0
+streamlit-option-menu>=0.2.6
+streamlit-image-comparison>=0.0.3
+streamlit-aggrid>=1.0.5
+pandas>=2.0.0

@@ -1,4 +1,4 @@
-﻿"""Page-level rendering for the FabriSense app."""
+"""Page-level rendering for the FabriSense app."""
 
 from __future__ import annotations
 
@@ -20,7 +20,11 @@ from src.model_benchmark import (
     create_uploaded_benchmark_manifest,
     list_manifest_directories,
 )
-from src.local_model import LocalFabricModel, get_local_model_client, list_available_local_models
+from src.local_model import (
+    LocalFabricModel,
+    get_local_model_client,
+    list_available_local_models,
+)
 from src.model_review_store import ModelReviewStore
 from src.report_generator import ReportGenerator
 from src.utils import (
@@ -36,16 +40,31 @@ from src.utils import (
     summarize_analysis,
 )
 from ui.components import (
+    render_badge,
+    render_chat_narrative,
     render_color_palette,
+    render_color_wheel,
     render_compare_card,
+    render_confidence_bar,
+    render_confusion_matrix_heatmap,
+    render_confusion_sankey,
+    render_empty_state,
     render_feature_strip,
+    render_gauge_chart,
     render_hero,
     render_highlight_banner,
+    render_image_comparison,
+    render_interactive_table,
     render_key_value_block,
     render_list_block,
     render_metric_band,
     render_page_intro,
+    render_palette_gradient_bar,
+    render_radar_chart,
     render_sample_gallery,
+    render_skeleton,
+    render_skeleton_card,
+    render_status_dot,
     render_upload_panel,
 )
 
@@ -122,9 +141,8 @@ CARE_GUIDE = [
     },
 ]
 
-ANALYSIS_OPTIONS = ["AI-generated", "Local Heuristics", "Local Trained Model"]
+ANALYSIS_OPTIONS = ["Local Trained Model", "Local Heuristics"]
 MODE_LABELS = {
-    "AI-generated": "ai",
     "Local Heuristics": "heuristic",
     "Local Trained Model": "trained",
 }
@@ -138,10 +156,6 @@ WORKFLOW_BANNERS = {
             "Locally trained model workflow",
             "Use your trained classifier for fabric-family prediction, then let FabriSense build the rest of the brief with local rules and palette analysis.",
         ),
-        "ai": (
-            "AI-generated workflow",
-            "Use the guided model path when you want richer summary language, cleaner reasoning, and a more editorial material brief.",
-        ),
     },
     "batch": {
         "heuristic": (
@@ -152,10 +166,6 @@ WORKFLOW_BANNERS = {
             "Local model batch pass",
             "Run your trained fabric classifier across a set of images while keeping the rest of the brief local and API-free.",
         ),
-        "ai": (
-            "AI-generated batch run",
-            "Use the AI path when the batch needs stronger descriptive language and a more refined brief per image.",
-        ),
     },
     "comparison": {
         "heuristic": (
@@ -165,10 +175,6 @@ WORKFLOW_BANNERS = {
         "trained": (
             "Local model comparison",
             "Compare fabrics with the locally trained classifier while keeping the analysis fully offline.",
-        ),
-        "ai": (
-            "AI-generated comparison",
-            "Use the guided AI path when you want more interpretive differences in material description and commercial framing.",
         ),
     },
 }
@@ -187,12 +193,12 @@ def _mode_spinner(mode: str, context: str = "analysis") -> str:
             return "Comparing local texture and color heuristics..."
         if mode == "trained":
             return "Comparing fabrics with the local trained model..."
-        return "Building an AI-generated side-by-side review..."
+        return "Comparing local fabric evidence..."
     if mode == "heuristic":
         return "Running local vision heuristics..."
     if mode == "trained":
         return "Running the local trained model and building the brief..."
-    return "Building an AI-generated material brief..."
+    return "Building a local material brief..."
 
 
 def _mode_button_label(mode: str, context: str = "analysis") -> str:
@@ -206,7 +212,7 @@ def _mode_button_label(mode: str, context: str = "analysis") -> str:
         return "Run Heuristic Analysis"
     if mode == "trained":
         return "Run Local Model Analysis"
-    return "Generate AI Brief"
+    return "Run Analysis"
 
 
 def _available_local_models() -> list[Dict[str, Any]]:
@@ -219,10 +225,19 @@ def _create_analyzer(checkpoint_path: str | None = None) -> FabricAnalyzer:
 
 
 def _render_loading_state(animation_key: str, height: int = 120) -> None:
-    loading_asset = load_json_asset("assets/lottie_loading.json")
-    if loading_asset:
-        st_lottie(loading_asset, height=height, key=animation_key)
-    st.markdown(f"<div class='loading-card'>{get_random_fun_fact()}</div>", unsafe_allow_html=True)
+    with st.status("Analyzing fabric...", expanded=True) as status:
+        st.markdown(
+            f"<div class='loading-card'>{get_random_fun_fact()}</div>",
+            unsafe_allow_html=True,
+        )
+        cols = st.columns(3)
+        for col in cols:
+            with col:
+                st.markdown(render_skeleton_card(), unsafe_allow_html=True)
+        loading_asset = load_json_asset("assets/lottie_loading.json")
+        if loading_asset:
+            st_lottie(loading_asset, height=height, key=animation_key)
+        status.update(label="Analysis in progress...", state="running")
 
 
 def _comma_list(values: list[str] | None, default: str = "N/A") -> str:
@@ -263,7 +278,7 @@ def _clear_single_analysis_state() -> None:
 
 def _analysis_error_message(analysis_mode: str, context: str) -> str:
     if analysis_mode == "ai":
-        return f"AI-generated {context} failed. Check your `.env` configuration."
+        return f"Provider-based {context} failed. Check your `.env` configuration."
     return f"Local {context} failed."
 
 
@@ -322,7 +337,9 @@ def _persist_uploaded_benchmark_zip(uploaded_file: Any) -> Path:
     incoming_dir = Path("data/benchmark_uploads/_incoming")
     incoming_dir.mkdir(parents=True, exist_ok=True)
     safe_name = Path(getattr(uploaded_file, "name", "benchmark.zip")).name
-    target_path = incoming_dir / f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-{safe_name}"
+    target_path = (
+        incoming_dir / f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-{safe_name}"
+    )
     target_path.write_bytes(uploaded_file.getvalue())
     return target_path
 
@@ -346,17 +363,24 @@ def _dataset_summary(metadata: Dict[str, Any]) -> Dict[str, str]:
         return {}
 
     class_counts = metadata.get("class_counts", {}) or {}
-    total_images = sum(int(value) for value in class_counts.values()) if class_counts else 0
+    total_images = (
+        sum(int(value) for value in class_counts.values()) if class_counts else 0
+    )
     summary = {
         "Dataset Root": metadata.get("dataset_root", "N/A"),
         "Labels": str(len(metadata.get("labels", []))),
-        "Total Images": str(total_images or sum(int(value) for value in (metadata.get("counts", {}) or {}).values())),
+        "Total Images": str(
+            total_images
+            or sum(int(value) for value in (metadata.get("counts", {}) or {}).values())
+        ),
         "Train / Val / Test": (
             f"{metadata.get('counts', {}).get('train', 0)} / "
             f"{metadata.get('counts', {}).get('val', 0)} / "
             f"{metadata.get('counts', {}).get('test', 0)}"
         ),
-        "Scope": "Curated subset" if metadata.get("included_classes") else "Full manifest",
+        "Scope": "Curated subset"
+        if metadata.get("included_classes")
+        else "Full manifest",
     }
 
     if class_counts:
@@ -402,7 +426,7 @@ def _comparison_story_rows() -> list[Dict[str, Any]]:
 
 def _render_analysis_guide(analysis_mode: str) -> None:
     mode_title = {
-        "ai": "AI-generated",
+        "ai": "Provider-based",
         "heuristic": "Local Heuristics",
         "trained": "Local Trained Model",
     }.get(analysis_mode, "Analysis")
@@ -411,15 +435,14 @@ def _render_analysis_guide(analysis_mode: str) -> None:
             f"""
 Use `{mode_title}` when it matches your goal.
 
-- `AI-generated`: best for polished summaries, richer narrative, and presentation-ready language.
+- `Local Trained Model`: best when you want your benchmarked classifier in the loop.
 - `Local Heuristics`: best for fast offline demos and explainable baseline behavior.
-- `Local Trained Model`: best when you want your own benchmarked classifier in the loop.
 
 Recommended flow:
 
 1. Start with `Local Trained Model` for the strongest offline prediction path.
 2. Check confidence warnings and top alternatives in the results.
-3. Switch to `AI-generated` if you want a more editorial brief for presentation.
+3. Save review corrections when the model prediction needs adjustment.
 4. Use `Compare Fabrics` or `Models` when you need evidence rather than only a single result.
 """
         )
@@ -461,7 +484,7 @@ How to explain the study:
 - `scratch_cnn` is the learned baseline.
 - `mobilenet_v3_small` is the lightweight deployment candidate.
 - `resnet18` is the best overall local classifier.
-- `AI-generated` mode helps narration, but it is not the benchmark source of truth.
+- Local heuristic summaries provide presentation context, but checkpoint metrics are the benchmark source of truth.
 
 How to compare responsibly:
 
@@ -489,7 +512,9 @@ def _labels_for_prediction(prediction: Dict[str, Any]) -> list[str]:
         return list(model_entry["labels"])
 
     labels = [prediction.get("label", "")]
-    labels.extend(item.get("label", "") for item in prediction.get("top_predictions", []))
+    labels.extend(
+        item.get("label", "") for item in prediction.get("top_predictions", [])
+    )
     unique_labels = []
     for label in labels:
         if label and label not in unique_labels:
@@ -525,6 +550,41 @@ def _safe_text(value: Any) -> str:
     return html_escape("" if value is None else str(value), quote=True)
 
 
+def _score_value(value: Any, default: float = 5.0) -> float:
+    """Convert local qualitative scores into a 0-10 chart value."""
+    if isinstance(value, (int, float)):
+        return min(max(float(value), 0.0), 10.0)
+
+    text = str(value or "").strip()
+    if not text:
+        return default
+
+    lower = text.lower()
+    label_scores = {
+        "very low": 2.0,
+        "low": 3.0,
+        "fair": 4.5,
+        "medium": 5.5,
+        "moderate": 5.5,
+        "good": 7.0,
+        "high": 8.0,
+        "excellent": 9.0,
+    }
+    if lower in label_scores:
+        return label_scores[lower]
+
+    number_text = text.split("/")[0].strip()
+    is_percent = number_text.endswith("%")
+    number_text = number_text.rstrip("%").strip()
+    try:
+        parsed = float(number_text)
+    except ValueError:
+        return default
+    if is_percent:
+        parsed = parsed / 10
+    return min(max(parsed, 0.0), 10.0)
+
+
 def render_home_page() -> None:
     render_hero()
     render_feature_strip()
@@ -542,15 +602,25 @@ def render_home_page() -> None:
             prompt="Drop a close-up or flat-lay textile image for analysis",
         )
     with input_right:
-        sample_choice = render_sample_gallery("assets/sample_fabrics", state_key="home_selected_sample")
+        sample_choice = render_sample_gallery(
+            "assets/sample_fabrics", state_key="home_selected_sample"
+        )
     choice = upload_choice or sample_choice
 
     if choice is None:
-        st.info("Choose a curated sample or upload an image to start a material read.")
+        render_empty_state(
+            "&#128247;",
+            "No Image Selected",
+            "Choose a curated sample or upload a textile image to start a material read.",
+        )
         return
 
     image, image_name = choice
-    selected_checkpoint = _render_local_model_selector("home_trained_model") if analysis_mode == "trained" else None
+    selected_checkpoint = (
+        _render_local_model_selector("home_trained_model")
+        if analysis_mode == "trained"
+        else None
+    )
     button_label = _mode_button_label(analysis_mode)
     if st.button(
         button_label,
@@ -566,7 +636,9 @@ def render_home_page() -> None:
         )
 
 
-def _run_analysis(image, image_name: str, analysis_mode: str, checkpoint_path: str | None = None) -> None:
+def _run_analysis(
+    image, image_name: str, analysis_mode: str, checkpoint_path: str | None = None
+) -> None:
     with st.container():
         _render_loading_state("loading-animation", height=140)
         spinner_text = _mode_spinner(analysis_mode)
@@ -583,14 +655,19 @@ def _run_analysis(image, image_name: str, analysis_mode: str, checkpoint_path: s
             try:
                 report_bytes = ReportGenerator().generate_pdf(analysis, image)
             except Exception as exc:
-                st.warning(f"Analysis completed, but PDF generation is unavailable. Details: {exc}")
+                st.warning(
+                    f"Analysis completed, but PDF generation is unavailable. Details: {exc}"
+                )
 
     _append_history_entry(analysis, image_name)
     _set_single_analysis_state(analysis, report_bytes, image, image_name)
+    st.toast("Analysis complete!")
     st.rerun()
 
 
-def render_results_page(analysis: Dict[str, Any], report_bytes: bytes | None, image, image_name: str) -> None:
+def render_results_page(
+    analysis: Dict[str, Any], report_bytes: bytes | None, image, image_name: str
+) -> None:
     metadata = analysis.get("analysis_metadata", {})
     render_page_intro(
         "ANALYSIS OUTPUT",
@@ -669,7 +746,45 @@ def render_results_page(analysis: Dict[str, Any], report_bytes: bytes | None, im
                 },
             )
 
-        render_color_palette(palette.get("colors", []), palette.get("harmony_type", "Unknown"))
+        render_color_palette(
+            palette.get("colors", []), palette.get("harmony_type", "Unknown")
+        )
+        render_palette_gradient_bar(palette.get("colors", []))
+        if palette.get("colors"):
+            with st.expander("Interactive Color Wheel", expanded=False):
+                render_color_wheel(palette.get("colors", []))
+
+        radar_labels = ["Durability", "Breathability", "Eco Score", "Softness", "Value"]
+        quality_score = _score_value(quality.get("score"), default=0.0)
+        radar_values = [
+            _score_value(
+                quality.get("durability_estimate"),
+                default=quality_score or 5.0,
+            ),
+            _score_value(
+                season.get("breathability"),
+                default=5.0,
+            ),
+            _score_value(sustainability.get("eco_score"), default=5.0),
+            _score_value(
+                texture.get("hand_feel_score"),
+                default=quality_score or 5.0,
+            ),
+            _score_value(
+                price.get("value_for_money_score") or price.get("value_for_money"),
+                default=quality_score or 5.0,
+            ),
+        ]
+
+        gauge_left, gauge_right = st.columns(2)
+        with gauge_left:
+            render_gauge_chart(quality_score, "Quality Score", max_value=10.0)
+        with gauge_right:
+            eco_val = _score_value(sustainability.get("eco_score"), default=5.0)
+            render_gauge_chart(eco_val, "Eco Score", max_value=10.0)
+
+        with st.expander("Quality Radar Profile", expanded=False):
+            render_radar_chart(radar_labels, radar_values)
 
     with material_tab:
         left, right = st.columns(2)
@@ -691,6 +806,18 @@ def render_results_page(analysis: Dict[str, Any], report_bytes: bytes | None, im
 
         with right:
             if model_prediction:
+                confidence_html = "<div style='margin-bottom:1rem;'>"
+                primary_conf = float(model_prediction.get("confidence", 0) or 0)
+                confidence_html += render_confidence_bar(
+                    model_prediction.get("label", "N/A"), primary_conf
+                )
+                for item in model_prediction.get("top_predictions", [])[1:4]:
+                    alt_conf = float(item.get("confidence", 0) or 0)
+                    confidence_html += render_confidence_bar(
+                        item.get("label", "N/A"), alt_conf
+                    )
+                confidence_html += "</div>"
+                st.markdown(confidence_html, unsafe_allow_html=True)
                 render_list_block(
                     "Model Prediction",
                     [
@@ -698,13 +825,17 @@ def render_results_page(analysis: Dict[str, Any], report_bytes: bytes | None, im
                         f"Primary label: {model_prediction.get('label', 'N/A')} ({round(float(model_prediction.get('confidence', 0)) * 100, 1)}%)",
                         *[
                             f"Alt: {item.get('label', 'N/A')} ({round(float(item.get('confidence', 0)) * 100, 1)}%)"
-                            for item in model_prediction.get('top_predictions', [])[1:]
+                            for item in model_prediction.get("top_predictions", [])[1:]
                         ],
                         f"Checkpoint: {model_prediction.get('checkpoint_path', 'N/A')}",
                     ],
                 )
-                render_list_block("Prediction Warnings", _model_warning_rows(model_prediction))
-                st.caption("Trained-model confidence is a softmax score. It can still be overconfident on images unlike the training set.")
+                render_list_block(
+                    "Prediction Warnings", _model_warning_rows(model_prediction)
+                )
+                st.caption(
+                    "Trained-model confidence is a softmax score. It can still be overconfident on images unlike the training set."
+                )
             render_list_block(
                 "Styling Suggestions",
                 [
@@ -754,6 +885,8 @@ def render_results_page(analysis: Dict[str, Any], report_bytes: bytes | None, im
             render_list_block("Interior Uses", interior.get("suggestions", []))
 
     with narrative_tab:
+        render_chat_narrative(analysis)
+        st.divider()
         left, right = st.columns(2)
         with left:
             render_key_value_block(
@@ -795,7 +928,11 @@ def render_results_page(analysis: Dict[str, Any], report_bytes: bytes | None, im
             with review_right:
                 review_labels = _labels_for_prediction(model_prediction)
                 predicted_label = model_prediction.get("label", "")
-                default_index = review_labels.index(predicted_label) if predicted_label in review_labels else 0
+                default_index = (
+                    review_labels.index(predicted_label)
+                    if predicted_label in review_labels
+                    else 0
+                )
                 corrected_label = st.selectbox(
                     "Reviewed Label",
                     review_labels or [predicted_label or "Unknown"],
@@ -807,9 +944,19 @@ def render_results_page(analysis: Dict[str, Any], report_bytes: bytes | None, im
                     placeholder="Add why you agree, disagree, or want to revisit this prediction.",
                     key=f"model-review-notes-{image_name}",
                 )
-                if st.button("Save Model Review", type="primary", width="stretch", key=f"save-review-{image_name}"):
-                    MODEL_REVIEWS.append(_review_entry_from_analysis(analysis, image_name, corrected_label, review_notes))
+                if st.button(
+                    "Save Model Review",
+                    type="primary",
+                    width="stretch",
+                    key=f"save-review-{image_name}",
+                ):
+                    MODEL_REVIEWS.append(
+                        _review_entry_from_analysis(
+                            analysis, image_name, corrected_label, review_notes
+                        )
+                    )
                     st.success("Model review saved to the local review log.")
+                    st.toast("Review saved!")
 
 
 def render_batch_page() -> None:
@@ -818,7 +965,11 @@ def render_batch_page() -> None:
         "Analyze a batch of fabric images in one run.",
         "Use batch mode to review seller catalogs, classroom submissions, or sourcing references and export the summary as CSV.",
     )
-    mode_label = st.radio("Batch Mode", ANALYSIS_OPTIONS, horizontal=True, key="batch_mode")
+    if st.session_state.get("batch_mode") not in ANALYSIS_OPTIONS:
+        st.session_state.batch_mode = ANALYSIS_OPTIONS[0]
+    mode_label = st.radio(
+        "Batch Mode", ANALYSIS_OPTIONS, horizontal=True, key="batch_mode"
+    )
     analysis_mode = MODE_LABELS[mode_label]
 
     _render_workflow_banner("batch", analysis_mode)
@@ -830,7 +981,11 @@ def render_batch_page() -> None:
         key="batch_upload",
     )
 
-    selected_checkpoint = _render_local_model_selector("batch_trained_model") if analysis_mode == "trained" else None
+    selected_checkpoint = (
+        _render_local_model_selector("batch_trained_model")
+        if analysis_mode == "trained"
+        else None
+    )
     if files and st.button(
         "Run Batch Analysis",
         type="primary",
@@ -841,18 +996,32 @@ def render_batch_page() -> None:
 
     bundle = st.session_state.batch_bundle
     if not bundle:
-        st.info("Upload several textile images to generate a batch summary and CSV export.")
+        render_empty_state(
+            "&#128202;",
+            "No Batch Results",
+            "Upload several textile images to generate a batch summary and CSV export.",
+        )
         return
 
     rows = bundle["rows"]
-    st.caption(f"Batch size: {len(rows)} | Mode: {bundle['analysis_mode']} | Engine: {bundle['engine']}")
+    st.caption(
+        f"Batch size: {len(rows)} | Mode: {bundle['analysis_mode']} | Engine: {bundle['engine']}"
+    )
     displayed_rows = rows
     if any(row.get("model_name") for row in rows):
         filter_left, filter_right = st.columns(2)
         with filter_left:
-            min_confidence = st.slider("Minimum prediction confidence", 0, 100, 0, key="batch-confidence-filter")
+            min_confidence = st.slider(
+                "Minimum prediction confidence",
+                0,
+                100,
+                0,
+                key="batch-confidence-filter",
+            )
         with filter_right:
-            needs_review_only = st.checkbox("Show only rows flagged for review", key="batch-review-filter")
+            needs_review_only = st.checkbox(
+                "Show only rows flagged for review", key="batch-review-filter"
+            )
 
         displayed_rows = [
             row
@@ -895,14 +1064,22 @@ def render_batch_page() -> None:
             )
 
 
-def _run_batch_analysis(files: list[Any], analysis_mode: str, checkpoint_path: str | None = None) -> None:
+def _run_batch_analysis(
+    files: list[Any], analysis_mode: str, checkpoint_path: str | None = None
+) -> None:
     _render_loading_state("batch-loading")
 
     rows = []
     details = []
+    progress_bar = st.progress(0, text="Starting batch analysis...")
     with st.spinner("Running batch analysis across uploaded materials..."):
         analyzer = _create_analyzer(checkpoint_path)
-        for uploaded in files:
+        total = len(files)
+        for idx, uploaded in enumerate(files):
+            progress_bar.progress(
+                (idx + 1) / total,
+                text=f"Analyzing {idx + 1} of {total}: {getattr(uploaded, 'name', 'unknown')}",
+            )
             valid, message = ImagePreprocessor.validate_image(uploaded)
             if not valid:
                 rows.append(
@@ -939,6 +1116,7 @@ def _run_batch_analysis(files: list[Any], analysis_mode: str, checkpoint_path: s
         "analysis_mode": analysis_mode,
         "engine": analysis_engine_label(analysis_mode),
     }
+    st.toast(f"Batch complete: {len(details)} of {total} succeeded")
     st.rerun()
 
 
@@ -949,7 +1127,11 @@ def render_compare_page() -> None:
         "Use the comparison view to separate fabric family, pattern direction, palette shifts, and visual quality without jumping between tabs.",
     )
 
-    mode_label = st.radio("Comparison Mode", ANALYSIS_OPTIONS, horizontal=True, key="compare_mode")
+    if st.session_state.get("compare_mode") not in ANALYSIS_OPTIONS:
+        st.session_state.compare_mode = ANALYSIS_OPTIONS[0]
+    mode_label = st.radio(
+        "Comparison Mode", ANALYSIS_OPTIONS, horizontal=True, key="compare_mode"
+    )
     analysis_mode = MODE_LABELS[mode_label]
 
     _render_workflow_banner("comparison", analysis_mode)
@@ -960,7 +1142,11 @@ def render_compare_page() -> None:
     with right:
         image_b, name_b = _render_compare_input("Material B", "compare_b")
 
-    selected_checkpoint = _render_local_model_selector("compare_trained_model") if analysis_mode == "trained" else None
+    selected_checkpoint = (
+        _render_local_model_selector("compare_trained_model")
+        if analysis_mode == "trained"
+        else None
+    )
     if image_a is not None and image_b is not None:
         button_label = _mode_button_label(analysis_mode, context="comparison")
         if st.button(
@@ -969,7 +1155,14 @@ def render_compare_page() -> None:
             width="stretch",
             disabled=analysis_mode == "trained" and not selected_checkpoint,
         ):
-            _run_comparison(image_a, name_a, image_b, name_b, analysis_mode, checkpoint_path=selected_checkpoint)
+            _run_comparison(
+                image_a,
+                name_a,
+                image_b,
+                name_b,
+                analysis_mode,
+                checkpoint_path=selected_checkpoint,
+            )
 
     bundle = st.session_state.comparison_bundle
     if not bundle:
@@ -981,11 +1174,17 @@ def render_compare_page() -> None:
         "A clearer read on which material performs better visually.",
         "Review the recommendation, inspect each textile panel, and use the differences list to explain the selection with confidence.",
     )
-    st.caption(f"Mode: {bundle.get('analysis_mode', 'unknown')} | Engine: {_engine_label(bundle)}")
+    st.caption(
+        f"Mode: {bundle.get('analysis_mode', 'unknown')} | Engine: {_engine_label(bundle)}"
+    )
 
     summary = bundle["summary"]
     winner = summary["winner"]
-    winner_text = f"Recommended option: {winner}" if winner != "Tie" else "Recommended option: Tie"
+    winner_text = (
+        f"Recommended option: {winner}"
+        if winner != "Tie"
+        else "Recommended option: Tie"
+    )
     render_highlight_banner(winner_text, summary["winner_reason"])
 
     score_cols = st.columns(2)
@@ -999,8 +1198,8 @@ def render_compare_page() -> None:
             <div class="compare-summary-card">
                 <p class="compare-summary-label">Fabric Direction</p>
                 <div class="compare-summary-flow">
-                    <div><span>{_safe_text(bundle['name_a'])}</span><strong>{_safe_text(summary['fabric_a'])}</strong></div>
-                    <div><span>{_safe_text(bundle['name_b'])}</span><strong>{_safe_text(summary['fabric_b'])}</strong></div>
+                    <div><span>{_safe_text(bundle["name_a"])}</span><strong>{_safe_text(summary["fabric_a"])}</strong></div>
+                    <div><span>{_safe_text(bundle["name_b"])}</span><strong>{_safe_text(summary["fabric_b"])}</strong></div>
                 </div>
             </div>
             """,
@@ -1012,8 +1211,8 @@ def render_compare_page() -> None:
             <div class="compare-summary-card">
                 <p class="compare-summary-label">Pattern Direction</p>
                 <div class="compare-summary-flow">
-                    <div><span>{_safe_text(bundle['name_a'])}</span><strong>{_safe_text(summary['pattern_a'])}</strong></div>
-                    <div><span>{_safe_text(bundle['name_b'])}</span><strong>{_safe_text(summary['pattern_b'])}</strong></div>
+                    <div><span>{_safe_text(bundle["name_a"])}</span><strong>{_safe_text(summary["pattern_a"])}</strong></div>
+                    <div><span>{_safe_text(bundle["name_b"])}</span><strong>{_safe_text(summary["pattern_b"])}</strong></div>
                 </div>
             </div>
             """,
@@ -1025,6 +1224,14 @@ def render_compare_page() -> None:
         render_compare_card(bundle["name_a"], bundle["analysis_a"], bundle["image_a"])
     with right_result:
         render_compare_card(bundle["name_b"], bundle["analysis_b"], bundle["image_b"])
+
+    with st.expander("Side-by-Side Comparison Slider", expanded=False):
+        render_image_comparison(
+            bundle["image_a"],
+            bundle["image_b"],
+            label_a=bundle["name_a"],
+            label_b=bundle["name_b"],
+        )
 
     list_left, list_right = st.columns(2)
     with list_left:
@@ -1068,12 +1275,17 @@ def _run_comparison(
         "name_b": name_b,
         "summary": summary,
         "analysis_mode": analysis_mode,
-        "model_used": analysis_a.get("analysis_metadata", {}).get("model_used", "unknown"),
+        "model_used": analysis_a.get("analysis_metadata", {}).get(
+            "model_used", "unknown"
+        ),
     }
+    st.toast("Comparison complete!")
     st.rerun()
 
 
-def _render_compare_input(title: str, key_prefix: str) -> tuple[Image.Image | None, str | None]:
+def _render_compare_input(
+    title: str, key_prefix: str
+) -> tuple[Image.Image | None, str | None]:
     st.markdown(f"### {title}")
     uploaded = st.file_uploader(
         f"Upload image for {title}",
@@ -1083,8 +1295,14 @@ def _render_compare_input(title: str, key_prefix: str) -> tuple[Image.Image | No
     )
 
     sample_paths = sorted(Path("assets/sample_fabrics").glob("*.jpg"))
-    sample_labels = ["None"] + [path.stem.replace("_", " ").title() for path in sample_paths]
-    selected_label = st.selectbox(f"Or choose a curated sample for {title}", sample_labels, key=f"{key_prefix}_sample")
+    sample_labels = ["None"] + [
+        path.stem.replace("_", " ").title() for path in sample_paths
+    ]
+    selected_label = st.selectbox(
+        f"Or choose a curated sample for {title}",
+        sample_labels,
+        key=f"{key_prefix}_sample",
+    )
 
     image = None
     name = None
@@ -1103,7 +1321,9 @@ def _render_compare_input(title: str, key_prefix: str) -> tuple[Image.Image | No
         name = selected_path.name
 
     if image is not None and name is not None:
-        st.image(ImagePreprocessor.resize_for_display(image), caption=name, width="stretch")
+        st.image(
+            ImagePreprocessor.resize_for_display(image), caption=name, width="stretch"
+        )
 
     return image, name
 
@@ -1116,7 +1336,11 @@ def render_history_page() -> None:
     )
     history = HISTORY.load()
     if not history:
-        st.info("No saved analysis history yet. Run a single or batch analysis first.")
+        render_empty_state(
+            "&#128337;",
+            "No History Yet",
+            "Run a single or batch analysis first. Your past results will appear here.",
+        )
         return
 
     st.download_button(
@@ -1130,7 +1354,7 @@ def render_history_page() -> None:
         HISTORY.clear()
         st.rerun()
 
-    st.dataframe(history, width="stretch")
+    render_interactive_table(history, height=min(400, max(200, len(history) * 36)))
 
 
 def render_fabric_guide_page() -> None:
@@ -1178,11 +1402,20 @@ def render_model_info_page() -> None:
     reviews = MODEL_REVIEWS.load()
     render_page_intro(
         "MODEL STACK",
-        "How FabriSense separates heuristics, trained models, and AI-generated analysis.",
-        "Use this page to explain the technical difference between the local heuristic engine, the locally trained model, and the optional AI-generated workflow.",
+        "How FabriSense presents local model evidence.",
+        "Use this page to explain the locally trained classifier, local heuristic baseline, checkpoint metrics, and review workflow.",
     )
     _render_model_guide()
 
+    availability_html = render_status_dot(model_info["available"], pulse=True) + (
+        render_badge("Ready", "success")
+        if model_info["available"]
+        else render_badge("Not Available", "danger")
+    )
+    st.markdown(
+        f"<div style='margin-bottom:1rem;'>{availability_html}</div>",
+        unsafe_allow_html=True,
+    )
     render_key_value_block(
         "Current Local Model Status",
         {
@@ -1190,45 +1423,39 @@ def render_model_info_page() -> None:
             "Model Name": model_info["model_name"],
             "Architecture": model_info["architecture"],
             "Class Count": model_info["class_count"],
-            "Checkpoint": model_info["checkpoint_path"] or "No checkpoint found in models/ or artifacts/",
+            "Checkpoint": model_info["checkpoint_path"]
+            or "No checkpoint found in models/ or artifacts/",
         },
     )
 
     left, right = st.columns(2)
     with left:
         render_key_value_block(
-            "Local Heuristics",
-            {
-                "What It Uses": "Palette extraction, contrast, edge density, repeat cues, and rule-based scoring.",
-                "Strength": "Fast, explainable, offline, and no extra model files required.",
-                "Limitation": "Fabric-family prediction is approximate because it is inferred from handcrafted rules.",
-            },
-        )
-        render_key_value_block(
             "Locally Trained Model",
             {
                 "What It Uses": "A trained classifier predicts fabric family from the uploaded image.",
-                "Strength": "Prediction layer belongs to the project and is measurable with accuracy and macro F1.",
+                "Strength": "The prediction layer belongs to the project and is measurable with accuracy and macro F1.",
                 "Limitation": "Only the fabric-family field comes from the trained model today; the rest of the brief still uses local rules.",
             },
         )
     with right:
         render_key_value_block(
-            "AI-generated Analysis",
+            "Local Heuristics",
             {
-                "What It Uses": "A multimodal provider generates the material brief from the image and prompt.",
-                "Strength": "Best for polished language, richer narrative, and more editorial summaries.",
-                "Limitation": "Depends on provider availability and is not the source of truth for research evaluation.",
+                "What It Uses": "Palette extraction, contrast, edge density, repeat cues, and rule-based scoring.",
+                "Strength": "Fast, explainable, offline, and useful as a baseline next to checkpoint predictions.",
+                "Limitation": "Fabric-family prediction is approximate because it is inferred from handcrafted rules.",
             },
         )
-        render_list_block(
-            "Recommended Usage",
-            [
-                "Use Local Heuristics for quick offline demos and baseline comparisons.",
-                "Use Locally Trained Model when you want your own classifier in the loop.",
-                "Use AI-generated Analysis when the presentation needs richer natural-language output.",
-            ],
-        )
+    render_list_block(
+        "Recommended Usage",
+        [
+            "Use Local Trained Model for the main demo and report workflow.",
+            "Use confidence, top alternatives, and warnings as model evidence.",
+            "Use Local Heuristics when no checkpoint is available or when you need a baseline comparison.",
+            "Use Review Feedback Loop to capture corrections for later model improvement.",
+        ],
+    )
 
     if model_info["labels"]:
         render_list_block("Default Model Labels", model_info["labels"])
@@ -1248,24 +1475,38 @@ def render_model_info_page() -> None:
                     "model_name": model["model_name"],
                     "architecture": model["architecture"],
                     "pretrained": model["pretrained"],
-                    "accuracy": round(float(metrics.get("accuracy", 0) or 0), 3) if metrics.get("accuracy") is not None else None,
-                    "macro_f1": round(float(metrics.get("macro_f1", 0) or 0), 3) if metrics.get("macro_f1") is not None else None,
-                    "weighted_f1": round(float(metrics.get("weighted_f1", 0) or 0), 3) if metrics.get("weighted_f1") is not None else None,
-                    "loss": round(float(metrics.get("loss", 0) or 0), 3) if metrics.get("loss") is not None else None,
+                    "accuracy": round(float(metrics.get("accuracy", 0) or 0), 3)
+                    if metrics.get("accuracy") is not None
+                    else None,
+                    "macro_f1": round(float(metrics.get("macro_f1", 0) or 0), 3)
+                    if metrics.get("macro_f1") is not None
+                    else None,
+                    "weighted_f1": round(float(metrics.get("weighted_f1", 0) or 0), 3)
+                    if metrics.get("weighted_f1") is not None
+                    else None,
+                    "loss": round(float(metrics.get("loss", 0) or 0), 3)
+                    if metrics.get("loss") is not None
+                    else None,
                     "class_count": model["class_count"],
                     "checkpoint_path": model["checkpoint_path"],
                 }
             )
 
         st.markdown("### Checkpoint Leaderboard")
-        st.dataframe(leaderboard_rows, width="stretch")
+        render_interactive_table(
+            leaderboard_rows, height=min(350, max(150, len(leaderboard_rows) * 42))
+        )
 
         selected_model_name = st.selectbox(
             "Inspect checkpoint",
             [model["display_name"] for model in available_models],
             key="model-dashboard-selection",
         )
-        selected_model = available_models[[model["display_name"] for model in available_models].index(selected_model_name)]
+        selected_model = available_models[
+            [model["display_name"] for model in available_models].index(
+                selected_model_name
+            )
+        ]
         selected_metrics = selected_model.get("metrics", {}) or {}
         selected_rows = classification_report_rows(selected_metrics)
         config_path = Path(selected_model["checkpoint_path"]).parent / "config.json"
@@ -1275,7 +1516,9 @@ def render_model_info_page() -> None:
                 selected_config = json.loads(config_path.read_text(encoding="utf-8"))
             except (OSError, json.JSONDecodeError):
                 selected_config = {}
-        selected_manifest_metadata = _load_manifest_metadata(selected_config.get("manifest_dir"))
+        selected_manifest_metadata = _load_manifest_metadata(
+            selected_config.get("manifest_dir")
+        )
 
         overview_left, overview_right = st.columns(2)
         with overview_left:
@@ -1286,34 +1529,48 @@ def render_model_info_page() -> None:
                     "Architecture": selected_model["architecture"],
                     "Pretrained": selected_model["pretrained"],
                     "Accuracy": (
-                        f"{selected_metrics.get('accuracy', 0):.3f}" if selected_metrics.get("accuracy") is not None else "N/A"
+                        f"{selected_metrics.get('accuracy', 0):.3f}"
+                        if selected_metrics.get("accuracy") is not None
+                        else "N/A"
                     ),
                     "Macro F1": (
-                        f"{selected_metrics.get('macro_f1', 0):.3f}" if selected_metrics.get("macro_f1") is not None else "N/A"
+                        f"{selected_metrics.get('macro_f1', 0):.3f}"
+                        if selected_metrics.get("macro_f1") is not None
+                        else "N/A"
                     ),
                     "Weighted F1": (
-                        f"{selected_metrics.get('weighted_f1', 0):.3f}" if selected_metrics.get("weighted_f1") is not None else "N/A"
+                        f"{selected_metrics.get('weighted_f1', 0):.3f}"
+                        if selected_metrics.get("weighted_f1") is not None
+                        else "N/A"
                     ),
-                    "Loss": f"{selected_metrics.get('loss', 0):.3f}" if selected_metrics.get("loss") is not None else "N/A",
+                    "Loss": f"{selected_metrics.get('loss', 0):.3f}"
+                    if selected_metrics.get("loss") is not None
+                    else "N/A",
                     "Class Count": selected_model["class_count"],
                     "Checkpoint": selected_model["checkpoint_path"],
                 },
             )
             if selected_manifest_metadata:
-                render_key_value_block("Training Dataset", _dataset_summary(selected_manifest_metadata))
+                render_key_value_block(
+                    "Training Dataset", _dataset_summary(selected_manifest_metadata)
+                )
         with overview_right:
             render_key_value_block(
                 "Research Framing",
                 {
                     "Baseline": "Local Heuristics or scratch CNN",
                     "Comparison Goal": "Show how transfer learning improves macro F1 on the same benchmark split",
-                    "Presentation Layer": "AI-generated mode adds narrative polish but is not the benchmark source of truth",
+                    "Presentation Layer": "Local rule-generated summaries explain the model output, but checkpoint metrics are the benchmark source of truth",
                     "Key Caution": "Read macro F1 together with dataset scope and class balance",
                 },
             )
             if selected_rows:
-                strongest_rows = sorted(selected_rows, key=lambda row: row["f1_score"], reverse=True)[:5]
-                weakest_rows = sorted(selected_rows, key=lambda row: row["f1_score"])[:5]
+                strongest_rows = sorted(
+                    selected_rows, key=lambda row: row["f1_score"], reverse=True
+                )[:5]
+                weakest_rows = sorted(selected_rows, key=lambda row: row["f1_score"])[
+                    :5
+                ]
                 st.markdown("### Strongest Classes")
                 st.dataframe(strongest_rows, width="stretch")
                 st.markdown("### Weakest Classes")
@@ -1321,6 +1578,24 @@ def render_model_info_page() -> None:
 
         confusion_matrix = selected_metrics.get("confusion_matrix", []) or []
         if confusion_matrix:
+            with st.expander("Interactive Confusion Matrix", expanded=False):
+                cm_labels = selected_metrics.get("classification_report", {})
+                label_names = list(cm_labels.keys()) if cm_labels else []
+                label_names = [
+                    l
+                    for l in label_names
+                    if l not in ("accuracy", "macro avg", "weighted avg")
+                ]
+                render_confusion_matrix_heatmap(confusion_matrix, label_names)
+            with st.expander("Misclassification Flow (Sankey)", expanded=False):
+                cm_labels = selected_metrics.get("classification_report", {})
+                label_names = list(cm_labels.keys()) if cm_labels else []
+                label_names = [
+                    l
+                    for l in label_names
+                    if l not in ("accuracy", "macro avg", "weighted avg")
+                ]
+                render_confusion_sankey(confusion_matrix, label_names)
             st.caption(
                 f"Confusion matrix shape: {len(confusion_matrix)} x {len(confusion_matrix[0]) if confusion_matrix else 0}"
             )
@@ -1328,7 +1603,10 @@ def render_model_info_page() -> None:
         st.markdown("### Benchmark Lab")
         manifest_entries = list_manifest_directories()
         uploaded_manifest = st.session_state.get("uploaded_benchmark_manifest")
-        if uploaded_manifest and Path(uploaded_manifest.get("manifest_dir", "")).exists():
+        if (
+            uploaded_manifest
+            and Path(uploaded_manifest.get("manifest_dir", "")).exists()
+        ):
             existing_dirs = {item["manifest_dir"] for item in manifest_entries}
             if uploaded_manifest["manifest_dir"] not in existing_dirs:
                 manifest_entries.insert(0, uploaded_manifest)
@@ -1336,7 +1614,9 @@ def render_model_info_page() -> None:
             st.session_state.uploaded_benchmark_manifest = None
 
         st.markdown("#### Evaluate New Labeled ZIP")
-        st.caption("Upload a ZIP where each top-level folder is a label, for example `Cotton/*.jpg` and `Denim/*.png`.")
+        st.caption(
+            "Upload a ZIP where each top-level folder is a label, for example `Cotton/*.jpg` and `Denim/*.png`."
+        )
         uploaded_zip = st.file_uploader(
             "Upload labeled benchmark ZIP",
             type=["zip"],
@@ -1366,20 +1646,34 @@ def render_model_info_page() -> None:
                     }
                     st.rerun()
         with upload_actions[1]:
-            if st.button("Forget Uploaded Benchmark Set", width="stretch", key="clear-uploaded-benchmark"):
+            if st.button(
+                "Forget Uploaded Benchmark Set",
+                width="stretch",
+                key="clear-uploaded-benchmark",
+            ):
                 st.session_state.uploaded_benchmark_manifest = None
                 st.rerun()
 
         if not manifest_entries:
-            st.info("No manifest directories were found under `data/`. Add labels.json plus train/val/test CSV manifests to enable in-app benchmarking.")
+            render_empty_state(
+                "&#128193;",
+                "No Benchmark Manifests",
+                "Add labels.json plus train/val/test CSV manifests under data/ to enable in-app benchmarking.",
+            )
         else:
             manifest_labels = [item["display_name"] for item in manifest_entries]
-            selected_manifest_label = st.selectbox("Benchmark dataset", manifest_labels, key="benchmark-manifest")
-            selected_manifest = manifest_entries[manifest_labels.index(selected_manifest_label)]
+            selected_manifest_label = st.selectbox(
+                "Benchmark dataset", manifest_labels, key="benchmark-manifest"
+            )
+            selected_manifest = manifest_entries[
+                manifest_labels.index(selected_manifest_label)
+            ]
 
             benchmark_left, benchmark_right = st.columns(2)
             with benchmark_left:
-                benchmark_split = st.selectbox("Benchmark split", ["test", "val", "train"], key="benchmark-split")
+                benchmark_split = st.selectbox(
+                    "Benchmark split", ["test", "val", "train"], key="benchmark-split"
+                )
                 max_examples = st.number_input(
                     "Max examples (0 = full split)",
                     min_value=0,
@@ -1389,8 +1683,13 @@ def render_model_info_page() -> None:
                     key="benchmark-max-examples",
                 )
             with benchmark_right:
-                checkpoint_options = {model["display_name"]: model["checkpoint_path"] for model in available_models}
-                default_selection = list(checkpoint_options.keys())[: min(2, len(checkpoint_options))]
+                checkpoint_options = {
+                    model["display_name"]: model["checkpoint_path"]
+                    for model in available_models
+                }
+                default_selection = list(checkpoint_options.keys())[
+                    : min(2, len(checkpoint_options))
+                ]
                 selected_checkpoints = st.multiselect(
                     "Checkpoints to compare",
                     list(checkpoint_options.keys()),
@@ -1408,10 +1707,16 @@ def render_model_info_page() -> None:
                         f"Class balance: smallest={smallest_label} ({class_counts[smallest_label]}) | "
                         f"largest={largest_label} ({class_counts[largest_label]})"
                     )
-                if str(selected_manifest.get("display_name", "")).startswith("uploaded::"):
-                    st.caption("Uploaded benchmark sets are best evaluated on the `test` split because train/val were mirrored from the uploaded sample.")
+                if str(selected_manifest.get("display_name", "")).startswith(
+                    "uploaded::"
+                ):
+                    st.caption(
+                        "Uploaded benchmark sets are best evaluated on the `test` split because train/val were mirrored from the uploaded sample."
+                    )
                 elif selected_manifest.get("benchmark_mode") == "standard":
-                    st.caption("Prefer curated subsets for headline comparisons when the full dataset is heavily imbalanced.")
+                    st.caption(
+                        "Prefer curated subsets for headline comparisons when the full dataset is heavily imbalanced."
+                    )
 
             if st.button(
                 "Run Checkpoint Benchmark",
@@ -1421,7 +1726,9 @@ def render_model_info_page() -> None:
             ):
                 try:
                     benchmark_results = compare_checkpoints_on_manifest(
-                        checkpoint_paths=[checkpoint_options[label] for label in selected_checkpoints],
+                        checkpoint_paths=[
+                            checkpoint_options[label] for label in selected_checkpoints
+                        ],
                         manifest_dir=selected_manifest["manifest_dir"],
                         split=benchmark_split,
                         max_examples=None if max_examples == 0 else int(max_examples),
@@ -1448,7 +1755,9 @@ def render_model_info_page() -> None:
                         "architecture": result["architecture"],
                         "accuracy": round(float(result.get("accuracy", 0) or 0), 3),
                         "macro_f1": round(float(result.get("macro_f1", 0) or 0), 3),
-                        "weighted_f1": round(float(result.get("weighted_f1", 0) or 0), 3),
+                        "weighted_f1": round(
+                            float(result.get("weighted_f1", 0) or 0), 3
+                        ),
                         "loss": round(float(result.get("loss", 0) or 0), 3),
                         "evaluated_examples": result.get("evaluated_examples", 0),
                         "checkpoint_path": result["checkpoint_path"],
@@ -1459,7 +1768,10 @@ def render_model_info_page() -> None:
 
                 inspected_result_name = st.selectbox(
                     "Inspect benchmark result",
-                    [result["model_name"] for result in benchmark_bundle.get("results", [])],
+                    [
+                        result["model_name"]
+                        for result in benchmark_bundle.get("results", [])
+                    ],
                     key="benchmark-result-selection",
                 )
                 inspected_result = next(
@@ -1473,7 +1785,11 @@ def render_model_info_page() -> None:
                     with inspect_left:
                         st.markdown("### Benchmark Strongest Classes")
                         st.dataframe(
-                            sorted(inspected_rows, key=lambda row: row["f1_score"], reverse=True)[:5],
+                            sorted(
+                                inspected_rows,
+                                key=lambda row: row["f1_score"],
+                                reverse=True,
+                            )[:5],
                             width="stretch",
                         )
                     with inspect_right:
@@ -1505,7 +1821,11 @@ def render_model_info_page() -> None:
     ]
     st.markdown("### Review Feedback Loop")
     if not review_summary:
-        st.info("No manual model reviews have been saved yet. Save corrections from trained-model runs to build a feedback loop.")
+        render_empty_state(
+            "&#128221;",
+            "No Reviews Yet",
+            "Save corrections from trained-model runs to build a feedback loop.",
+        )
     else:
         summary_left, summary_right = st.columns(2)
         with summary_left:
@@ -1513,8 +1833,20 @@ def render_model_info_page() -> None:
                 "Review Summary",
                 {
                     "Saved Reviews": len(review_summary),
-                    "Distinct Predicted Labels": len({item["predicted_label"] for item in review_summary if item["predicted_label"]}),
-                    "Distinct Corrected Labels": len({item["corrected_label"] for item in review_summary if item["corrected_label"]}),
+                    "Distinct Predicted Labels": len(
+                        {
+                            item["predicted_label"]
+                            for item in review_summary
+                            if item["predicted_label"]
+                        }
+                    ),
+                    "Distinct Corrected Labels": len(
+                        {
+                            item["corrected_label"]
+                            for item in review_summary
+                            if item["corrected_label"]
+                        }
+                    ),
                     "Latest Review": review_summary[0]["timestamp"],
                 },
             )
@@ -1548,9 +1880,8 @@ def render_about_page() -> None:
             "How It Works",
             {
                 "Input": "A textile image from upload or sample library.",
-                "Core Processing": "Image preparation, palette extraction, and either local or AI-generated interpretation.",
-                "Outputs": "Material summary, comparison view, batch export, and downloadable PDF report.",
+                "Core Processing": "Image preparation, palette extraction, locally trained classification, and local rule-based interpretation.",
+                "Outputs": "Material summary, model evidence, comparison view, batch export, and downloadable PDF report.",
                 "Best Use": "Presentations, educational demos, catalog review, and exploratory textile analysis workflows.",
             },
         )
-
