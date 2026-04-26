@@ -50,6 +50,8 @@ from ui.components import (
     render_confusion_sankey,
     render_empty_state,
     render_feature_strip,
+    render_client_workflow,
+    render_demo_scenarios,
     render_gauge_chart,
     render_hero,
     render_highlight_banner,
@@ -587,6 +589,7 @@ def _score_value(value: Any, default: float = 5.0) -> float:
 
 def render_home_page() -> None:
     render_hero()
+    render_client_workflow()
     render_feature_strip()
 
     mode_label = st.radio("Analysis Mode", ANALYSIS_OPTIONS, horizontal=True)
@@ -1866,10 +1869,11 @@ def render_model_info_page() -> None:
 
 def render_about_page() -> None:
     render_page_intro(
-        "PLATFORM OVERVIEW",
-        "FabriSense combines visual fabric reading with presentation-ready output.",
-        "The app is designed for designers, textile learners, sellers, and merchandisers who need a polished way to translate fabric imagery into useful product language.",
+        "CASE STUDY",
+        "FabriSense is a client-facing textile intelligence workspace.",
+        "The project turns fabric images into visual material briefs while keeping the machine-learning evidence available for portfolio review.",
     )
+    render_demo_scenarios()
     landing_asset = load_json_asset("assets/lottie_fabric.json")
     left, right = st.columns((0.7, 1.3))
     with left:
@@ -1877,11 +1881,33 @@ def render_about_page() -> None:
             st_lottie(landing_asset, height=260, key="fabric-animation")
     with right:
         render_key_value_block(
-            "How It Works",
+            "Product Story",
             {
-                "Input": "A textile image from upload or sample library.",
-                "Core Processing": "Image preparation, palette extraction, locally trained classification, and local rule-based interpretation.",
-                "Outputs": "Material summary, model evidence, comparison view, batch export, and downloadable PDF report.",
-                "Best Use": "Presentations, educational demos, catalog review, and exploratory textile analysis workflows.",
+                "Problem": "Non-technical users often have fabric images but no fast way to turn them into clear material, care, color, and suitability language.",
+                "Audience": "Designers, textile students, sellers, merchandisers, sourcing teams, and portfolio reviewers.",
+                "Workflow": "Upload or choose a sample, run local analysis, review the brief, compare options, then export a report or CSV.",
+                "Outcome": "The app behaves like a practical review workspace rather than a one-off notebook or API demo.",
+            },
+        )
+
+    proof_left, proof_right = st.columns(2)
+    with proof_left:
+        render_key_value_block(
+            "What Makes It Different",
+            {
+                "Local Prediction": "A project-owned trained classifier predicts fabric family from the image.",
+                "Explainable Product Layer": "Palette, pattern, care, quality, season, and price guidance are shown in plain language.",
+                "Human Review Loop": "Model corrections can be saved as feedback for future dataset improvement.",
+                "Client Output": "PDF and CSV exports make the result shareable outside the app.",
+            },
+        )
+    with proof_right:
+        render_key_value_block(
+            "Machine-Learning Evidence",
+            {
+                "Baseline": "Scratch CNN shows the learned-from-scratch reference point.",
+                "Efficient Model": "MobileNetV3 shows the lighter deployment candidate.",
+                "Best Local Model": "ResNet18 currently provides the strongest local checkpoint in this repo.",
+                "Evaluation": "Accuracy and macro F1 are reported on the same curated benchmark split for a fair comparison.",
             },
         )

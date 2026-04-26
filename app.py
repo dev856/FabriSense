@@ -67,66 +67,13 @@ def _apply_dark_mode() -> None:
 def _render_sidebar_navigation() -> str:
     with st.sidebar:
         render_sidebar_brand()
-        dark_mode = bool(st.session_state.get("dark_mode", False))
-        nav_styles = {
-            "container": {
-                "padding": "0 !important",
-                "background-color": "transparent",
-            },
-            "icon": {
-                "color": "#e8a07a" if dark_mode else "#bb6c3f",
-                "font-size": "16px",
-                "padding-right": "8px",
-            },
-            "nav-link": {
-                "padding": "0.6rem 0.9rem",
-                "margin": "0 0 0.3rem 0",
-                "border-radius": "22px",
-                "font-size": "0.92rem",
-                "font-weight": "600",
-                "color": "#c5cdd6" if dark_mode else "#243240",
-                "background-color": "transparent",
-                "border": "1px solid transparent",
-                "transition": "all 200ms ease",
-                "--hover-color": "rgba(212,136,92,0.10)"
-                if dark_mode
-                else "rgba(187,108,63,0.08)",
-            },
-            "nav-link-selected": {
-                "background-color": "rgba(212,136,92,0.18)"
-                if dark_mode
-                else "rgba(187,108,63,0.14)",
-                "font-weight": "800",
-                "color": "#e8a07a" if dark_mode else "#9d5630",
-                "border": "1px solid rgba(212,136,92,0.5)"
-                if dark_mode
-                else "1px solid rgba(187,108,63,0.35)",
-                "box-shadow": "0 4px 16px rgba(0,0,0,0.18)"
-                if dark_mode
-                else "0 4px 16px rgba(187,108,63,0.10)",
-            },
-        }
-        try:
-            from streamlit_option_menu import option_menu
-
-            selected = option_menu(
-                None,
-                NAV_LABELS,
-                icons=NAV_ICONS,
-                menu_icon=None,
-                default_index=NAV_IDS.index(
-                    st.session_state.get("nav_page", "analyze")
-                ),
-                key="nav_menu",
-                styles=nav_styles,
-            )
-        except ImportError:
-            selected = st.radio(
-                "Navigate",
-                NAV_LABELS,
-                label_visibility="collapsed",
-                index=NAV_IDS.index(st.session_state.get("nav_page", "analyze")),
-            )
+        selected = st.radio(
+            "Navigate",
+            NAV_LABELS,
+            label_visibility="collapsed",
+            index=NAV_IDS.index(st.session_state.get("nav_page", "analyze")),
+            key="sidebar_nav_radio",
+        )
         st.divider()
         st.toggle(
             "\U0001f319 Dark Mode",
