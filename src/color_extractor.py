@@ -76,7 +76,7 @@ class ColorExtractor:
         )
         kmeans.fit(filtered_pixels)
 
-        colors = kmeans.cluster_centers_.astype(int)
+        colors = np.rint(kmeans.cluster_centers_).astype(int)
         labels = kmeans.labels_
         counts = Counter(labels)
         total_pixels = len(labels)

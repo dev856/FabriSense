@@ -5,25 +5,25 @@ APP_CSS = """
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Fraunces:opsz,wght,SOFT@9..144,500..700,50&display=swap');
 
 :root {
-    --bg-top: #f7f3ec;
-    --bg-bottom: #e4ddd1;
-    --surface-0: rgba(255, 252, 247, 0.72);
-    --surface-1: rgba(255, 252, 248, 0.88);
-    --surface-2: rgba(247, 242, 235, 0.96);
-    --surface-3: rgba(238, 232, 223, 0.95);
-    --ink-strong: #14212b;
-    --ink: #243240;
-    --muted: #5e6b77;
-    --muted-soft: #8090a0;
-    --line: rgba(20, 33, 43, 0.10);
-    --line-strong: rgba(20, 33, 43, 0.18);
-    --accent: #bb6c3f;
-    --accent-strong: #9d5630;
-    --accent-soft: rgba(187, 108, 63, 0.12);
-    --accent-cool: #2f7487;
-    --success: #2f7d63;
-    --warning: #9f6a24;
-    --danger: #9a4b49;
+    --bg-top: #f5f8f7;
+    --bg-bottom: #dfe9e6;
+    --surface-0: rgba(255, 255, 252, 0.76);
+    --surface-1: rgba(255, 255, 252, 0.9);
+    --surface-2: rgba(239, 246, 244, 0.96);
+    --surface-3: rgba(224, 236, 232, 0.95);
+    --ink-strong: #132528;
+    --ink: #25383b;
+    --muted: #5b6d70;
+    --muted-soft: #7d9294;
+    --line: rgba(19, 37, 40, 0.10);
+    --line-strong: rgba(19, 37, 40, 0.18);
+    --accent: #0f7c78;
+    --accent-strong: #0a5f5b;
+    --accent-soft: rgba(15, 124, 120, 0.12);
+    --accent-cool: #5467b0;
+    --success: #277a62;
+    --warning: #a66f2a;
+    --danger: #9a4b55;
     --shadow-sm: 0 10px 30px rgba(18, 28, 36, 0.07);
     --shadow-md: 0 22px 60px rgba(18, 28, 36, 0.12);
     --shadow-lg: 0 36px 80px rgba(18, 28, 36, 0.16);
@@ -39,9 +39,9 @@ APP_CSS = """
 
 .stApp {
     background:
-        radial-gradient(circle at 12% 12%, rgba(47, 116, 135, 0.10), transparent 24%),
-        radial-gradient(circle at 90% 8%, rgba(187, 108, 63, 0.14), transparent 20%),
-        radial-gradient(circle at 84% 84%, rgba(47, 125, 99, 0.10), transparent 18%),
+        radial-gradient(circle at 12% 12%, rgba(15, 124, 120, 0.10), transparent 24%),
+        radial-gradient(circle at 90% 8%, rgba(84, 103, 176, 0.12), transparent 20%),
+        radial-gradient(circle at 84% 84%, rgba(39, 122, 98, 0.10), transparent 18%),
         linear-gradient(180deg, var(--bg-top) 0%, var(--bg-bottom) 100%);
     color: var(--ink);
 }
@@ -88,7 +88,7 @@ p, li, label, .stMarkdown, .stCaption {
 
 section[data-testid="stSidebar"] {
     background:
-        linear-gradient(180deg, rgba(248,245,239,0.97), rgba(233,226,216,0.98));
+        linear-gradient(180deg, rgba(250,253,251,0.92), rgba(227,238,235,0.90));
     border-right: 1px solid var(--line);
     backdrop-filter: blur(18px);
 }
@@ -102,6 +102,20 @@ section[data-testid="stSidebar"] .block-container {
 
 section[data-testid="stSidebar"] [data-testid="stSidebarNav"] {
     display: none;
+}
+
+section[data-testid="stSidebar"] div[class*="option-menu"],
+section[data-testid="stSidebar"] ul.nav,
+section[data-testid="stSidebar"] .nav,
+section[data-testid="stSidebar"] .nav-pills,
+section[data-testid="stSidebar"] .nav-item {
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+section[data-testid="stSidebar"] ul.nav {
+    padding: 0 !important;
+    border-radius: 0 !important;
 }
 
 .sidebar-brand-card,
@@ -134,8 +148,8 @@ section[data-testid="stSidebar"] [data-testid="stSidebarNav"] {
     padding: 1.2rem 1.1rem 1.1rem;
     margin-bottom: 1rem;
     background:
-        radial-gradient(circle at top right, rgba(187,108,63,0.15), transparent 36%),
-        linear-gradient(180deg, rgba(255,255,255,0.92), rgba(242,237,230,0.88));
+        radial-gradient(circle at top right, rgba(15,124,120,0.15), transparent 36%),
+        linear-gradient(180deg, rgba(255,255,255,0.94), rgba(237,246,243,0.9));
 }
 
 .sidebar-brand-card::after {
@@ -174,25 +188,89 @@ section[data-testid="stSidebar"] [data-testid="stSidebarNav"] {
 section[data-testid="stSidebar"] .stRadio [role="radiogroup"] {
     gap: 0.35rem;
     flex-direction: column;
+    align-items: stretch !important;
+    width: 100%;
 }
 
 section[data-testid="stSidebar"] .stRadio [role="radiogroup"] label {
-    border-radius: var(--radius-md);
-    padding: 0.65rem 0.9rem;
-    background: transparent;
-    border: 1px solid transparent;
-    box-shadow: none;
-    font-weight: 600;
+    border-radius: 16px;
+    padding: 0.68rem 0.92rem;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: 46px;
+    margin: 0 !important;
+    background: rgba(255,255,255,0.38);
+    border: 1px solid rgba(19,37,40,0.05);
+    box-shadow: var(--shadow-sm);
+    font-weight: 700;
     font-size: 0.92rem;
     color: var(--ink);
     transition: all 200ms ease;
     display: flex;
     align-items: center;
-    gap: 0.1rem;
+    gap: 0.55rem;
+    justify-content: flex-start;
+    box-sizing: border-box;
+}
+
+section[data-testid="stSidebar"] .stRadio [role="radiogroup"] label > div:first-child {
+    display: none;
+}
+
+section[data-testid="stSidebar"] .stRadio [role="radiogroup"] label::before {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    min-width: 22px;
+    height: 22px;
+    border-radius: 8px;
+    color: var(--accent);
+    font-size: 0.85rem;
+    font-weight: 800;
+    line-height: 1;
+    background: rgba(15, 124, 120, 0.08);
+}
+
+section[data-testid="stSidebar"] .stRadio [role="radiogroup"] label:nth-child(1)::before {
+    content: "A";
+}
+
+section[data-testid="stSidebar"] .stRadio [role="radiogroup"] label:nth-child(2)::before {
+    content: "B";
+}
+
+section[data-testid="stSidebar"] .stRadio [role="radiogroup"] label:nth-child(3)::before {
+    content: "C";
+}
+
+section[data-testid="stSidebar"] .stRadio [role="radiogroup"] label:nth-child(4)::before {
+    content: "H";
+}
+
+section[data-testid="stSidebar"] .stRadio [role="radiogroup"] label:nth-child(5)::before {
+    content: "G";
+}
+
+section[data-testid="stSidebar"] .stRadio [role="radiogroup"] label:nth-child(6)::before {
+    content: "C";
+}
+
+section[data-testid="stSidebar"] .stRadio [role="radiogroup"] label:nth-child(7)::before {
+    content: "M";
+}
+
+section[data-testid="stSidebar"] .stRadio [role="radiogroup"] label:nth-child(8)::before {
+    content: "i";
+}
+
+section[data-testid="stSidebar"] .stRadio [role="radiogroup"] div[data-testid="stMarkdownContainer"] {
+    flex: 1;
+    min-width: 0;
 }
 
 section[data-testid="stSidebar"] .stRadio [role="radiogroup"] label:hover {
-    background: rgba(187, 108, 63, 0.08);
+    background: rgba(15, 124, 120, 0.08);
     border-color: var(--line);
     transform: translateX(4px);
 }
@@ -202,11 +280,16 @@ section[data-testid="stSidebar"] .stRadio [role="radiogroup"] label[data-baseweb
 }
 
 section[data-testid="stSidebar"] .stRadio [aria-checked="true"] {
-    background: rgba(187, 108, 63, 0.14) !important;
-    border-color: rgba(187, 108, 63, 0.35) !important;
+    background: rgba(15, 124, 120, 0.14) !important;
+    border-color: rgba(15, 124, 120, 0.35) !important;
     color: var(--accent-strong) !important;
     font-weight: 800 !important;
-    box-shadow: 0 4px 16px rgba(187, 108, 63, 0.10);
+    box-shadow: 0 8px 22px rgba(15, 124, 120, 0.12);
+}
+
+section[data-testid="stSidebar"] .stRadio [aria-checked="true"]::before {
+    background: rgba(15, 124, 120, 0.13);
+    color: var(--accent-strong);
 }
 
 section[data-testid="stSidebar"] .stRadio [role="radiogroup"] [class*="st"] {
@@ -216,6 +299,8 @@ section[data-testid="stSidebar"] .stRadio [role="radiogroup"] [class*="st"] {
 section[data-testid="stSidebar"] .stRadio div[data-testid="stMarkdownContainer"] p {
     font-size: 0.92rem;
     font-weight: 600;
+    text-align: left;
+    overflow-wrap: anywhere;
 }
 
 section[data-testid="stSidebar"] .stRadio [aria-checked="true"] div[data-testid="stMarkdownContainer"] p {
@@ -280,9 +365,9 @@ section[data-testid="stSidebar"] .stRadio [aria-checked="true"] div[data-testid=
     margin-bottom: 1.35rem;
     padding: 1.75rem;
     background:
-        radial-gradient(circle at top right, rgba(187,108,63,0.16), transparent 28%),
-        radial-gradient(circle at bottom left, rgba(47,116,135,0.14), transparent 24%),
-        linear-gradient(135deg, rgba(255,255,255,0.94), rgba(244,238,231,0.86));
+        radial-gradient(circle at top right, rgba(15,124,120,0.15), transparent 28%),
+        radial-gradient(circle at bottom left, rgba(84,103,176,0.12), transparent 24%),
+        linear-gradient(135deg, rgba(255,255,255,0.96), rgba(235,245,242,0.88));
     animation: cardSlideUp 0.6s ease-out;
 }
 
@@ -301,7 +386,7 @@ section[data-testid="stSidebar"] .stRadio [aria-checked="true"] div[data-testid=
     height: 210px;
     right: -38px;
     top: -48px;
-    background: radial-gradient(circle, rgba(187,108,63,0.20), transparent 68%);
+    background: radial-gradient(circle, rgba(15,124,120,0.18), transparent 68%);
 }
 
 .hero-shell::after {
@@ -309,7 +394,7 @@ section[data-testid="stSidebar"] .stRadio [aria-checked="true"] div[data-testid=
     height: 160px;
     left: 48%;
     bottom: -58px;
-    background: radial-gradient(circle, rgba(47,116,135,0.18), transparent 68%);
+    background: radial-gradient(circle, rgba(84,103,176,0.16), transparent 68%);
     animation-delay: 1.8s;
 }
 
@@ -436,7 +521,7 @@ section[data-testid="stSidebar"] .stRadio [aria-checked="true"] div[data-testid=
     height: 48px;
     margin-bottom: 0.85rem;
     border-radius: 15px;
-    background: linear-gradient(135deg, rgba(187,108,63,0.18), rgba(47,116,135,0.16));
+    background: linear-gradient(135deg, rgba(15,124,120,0.16), rgba(84,103,176,0.14));
     color: var(--ink-strong);
     font-size: 1.25rem;
     font-weight: 800;
@@ -481,7 +566,7 @@ section[data-testid="stSidebar"] .stRadio [aria-checked="true"] div[data-testid=
     width: 72px;
     height: 72px;
     border-radius: 999px;
-    background: radial-gradient(circle, rgba(187,108,63,0.18), transparent 70%);
+    background: radial-gradient(circle, rgba(15,124,120,0.16), transparent 70%);
 }
 
 .metric-card h3 {
@@ -709,6 +794,85 @@ section[data-testid="stSidebar"] .stRadio [aria-checked="true"] div[data-testid=
     box-shadow: var(--shadow-lg);
 }
 
+.workflow-strip {
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--line);
+    background: linear-gradient(135deg, rgba(255,255,255,0.92), rgba(235,245,242,0.84));
+    box-shadow: var(--shadow-md);
+    padding: 1.15rem;
+    margin: 0 0 1rem;
+    animation: cardSlideUp 0.45s ease-out;
+}
+
+.workflow-strip-head {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.9rem;
+}
+
+.workflow-strip-head h3 {
+    max-width: 42rem;
+    margin: 0;
+    font-size: 1.45rem;
+}
+
+.workflow-step-grid,
+.scenario-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.workflow-step,
+.scenario-card {
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(19, 37, 40, 0.08);
+    background: rgba(255,255,255,0.72);
+    padding: 0.95rem;
+    min-height: 132px;
+    box-shadow: var(--shadow-sm);
+}
+
+.workflow-step span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    margin-bottom: 0.72rem;
+    border-radius: 12px;
+    background: var(--accent);
+    color: white;
+    font-weight: 800;
+}
+
+.workflow-step strong,
+.scenario-card h4 {
+    display: block;
+    margin: 0 0 0.34rem;
+    color: var(--ink-strong);
+    font-size: 1rem;
+}
+
+.workflow-step p,
+.scenario-card p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.88rem;
+    line-height: 1.5;
+}
+
+.scenario-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-bottom: 1rem;
+}
+
+.scenario-card {
+    min-height: 116px;
+}
+
 .bento-cell h4 {
     margin: 0 0 0.4rem;
     font-size: 1.1rem;
@@ -752,7 +916,15 @@ section[data-testid="stSidebar"] .stRadio [aria-checked="true"] div[data-testid=
 }
 
 section[data-testid="stSidebar"] .nav-link {
-    border-radius: 22px;
+    border-radius: 16px;
+    min-height: 44px;
+    backdrop-filter: blur(14px);
+}
+
+section[data-testid="stSidebar"] .nav-link:hover {
+    transform: translateX(4px);
+    border-color: var(--line);
+    background: rgba(255, 255, 255, 0.62) !important;
 }
 
 .image-comparison-container {
@@ -1084,9 +1256,9 @@ div[data-baseweb="input"] > div,
 [data-testid="stFileUploaderDropzone"] {
     min-height: 96px;
     padding: 1rem 1.2rem !important;
-    border: 1px dashed rgba(187, 108, 63, 0.36) !important;
+    border: 1px dashed rgba(15, 124, 120, 0.36) !important;
     border-radius: var(--radius-md) !important;
-    background: linear-gradient(180deg, rgba(255,255,255,0.58), rgba(229,211,181,0.58)) !important;
+    background: linear-gradient(180deg, rgba(255,255,255,0.68), rgba(221,239,235,0.64)) !important;
 }
 
 [data-testid="stFileUploaderDropzone"] > div {
@@ -1285,6 +1457,11 @@ hr {
         right: 1rem;
         transform: none;
     }
+
+    .workflow-step-grid,
+    .scenario-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 
 @media (max-width: 720px) {
@@ -1320,6 +1497,15 @@ hr {
         bottom: 0.8rem;
         padding: 0.5rem 0.75rem;
     }
+
+    .workflow-strip-head {
+        display: block;
+    }
+
+    .workflow-step-grid,
+    .scenario-grid {
+        grid-template-columns: 1fr;
+    }
 }
 </style>
 """
@@ -1339,9 +1525,10 @@ DARK_MODE_CSS = """
     --muted-soft: #6b7a8a;
     --line: rgba(200, 215, 230, 0.08);
     --line-strong: rgba(200, 215, 230, 0.14);
-    --accent: #d4885c;
-    --accent-strong: #e8a07a;
-    --accent-soft: rgba(212, 136, 92, 0.15);
+    --accent: #77d4ca;
+    --accent-strong: #9ff0e7;
+    --accent-soft: rgba(119, 212, 202, 0.15);
+    --accent-cool: #9fabff;
     --shadow-sm: 0 10px 30px rgba(0, 0, 0, 0.22);
     --shadow-md: 0 22px 60px rgba(0, 0, 0, 0.32);
     --shadow-lg: 0 36px 80px rgba(0, 0, 0, 0.40);
@@ -1353,8 +1540,8 @@ DARK_MODE_CSS = """
 
 .stApp {
     background:
-        radial-gradient(circle at 12% 12%, rgba(47, 116, 135, 0.10), transparent 24%),
-        radial-gradient(circle at 90% 8%, rgba(212, 136, 92, 0.14), transparent 20%),
+        radial-gradient(circle at 12% 12%, rgba(119, 212, 202, 0.10), transparent 24%),
+        radial-gradient(circle at 90% 8%, rgba(159, 171, 255, 0.12), transparent 20%),
         radial-gradient(circle at 84% 84%, rgba(47, 125, 99, 0.10), transparent 18%),
         linear-gradient(180deg, var(--bg-top) 0%, var(--bg-bottom) 100%);
     color: var(--ink);
@@ -1368,13 +1555,13 @@ DARK_MODE_CSS = """
 
 section[data-testid="stSidebar"] {
     background:
-        linear-gradient(180deg, rgba(24, 32, 42, 0.97), rgba(18, 24, 32, 0.98));
+        linear-gradient(180deg, rgba(24, 32, 42, 0.90), rgba(18, 24, 32, 0.88));
     border-right: 1px solid var(--line);
 }
 
 .sidebar-brand-card {
     background:
-        radial-gradient(circle at top right, rgba(212,136,92,0.18), transparent 36%),
+        radial-gradient(circle at top right, rgba(119,212,202,0.18), transparent 36%),
         linear-gradient(180deg, rgba(32, 44, 58, 0.92), rgba(26, 36, 48, 0.88));
 }
 
@@ -1388,17 +1575,22 @@ section[data-testid="stSidebar"] {
 
 section[data-testid="stSidebar"] .stRadio [role="radiogroup"] label {
     color: var(--ink);
-    background: transparent;
+    background: rgba(32, 44, 58, 0.48);
+    border-color: var(--line);
+}
+
+section[data-testid="stSidebar"] .nav-link:hover {
+    background: rgba(32, 44, 58, 0.72) !important;
 }
 
 section[data-testid="stSidebar"] .stRadio [role="radiogroup"] label:hover {
-    background: rgba(212, 136, 92, 0.10);
+    background: rgba(119, 212, 202, 0.10);
     border-color: var(--line);
 }
 
 section[data-testid="stSidebar"] .stRadio [aria-checked="true"] {
-    background: rgba(212, 136, 92, 0.18) !important;
-    border-color: rgba(212, 136, 92, 0.5) !important;
+    background: rgba(119, 212, 202, 0.18) !important;
+    border-color: rgba(119, 212, 202, 0.5) !important;
     color: var(--accent-strong) !important;
 }
 
@@ -1429,7 +1621,7 @@ section[data-testid="stSidebar"] .stRadio [aria-checked="true"] div[data-testid=
 
 .sidebar-brand-card {
     background:
-        radial-gradient(circle at top right, rgba(212,136,92,0.18), transparent 36%),
+        radial-gradient(circle at top right, rgba(119,212,202,0.18), transparent 36%),
         linear-gradient(180deg, rgba(32, 44, 58, 0.92), rgba(26, 36, 48, 0.88));
 }
 
@@ -1455,8 +1647,8 @@ section[data-testid="stSidebar"] .stRadio [aria-checked="true"] div[data-testid=
 
 .hero-shell {
     background:
-        radial-gradient(circle at top right, rgba(212,136,92,0.16), transparent 28%),
-        radial-gradient(circle at bottom left, rgba(47,116,135,0.14), transparent 24%),
+        radial-gradient(circle at top right, rgba(119,212,202,0.15), transparent 28%),
+        radial-gradient(circle at bottom left, rgba(159,171,255,0.12), transparent 24%),
         linear-gradient(135deg, rgba(32, 44, 58, 0.94), rgba(26, 36, 48, 0.86));
 }
 
@@ -1505,6 +1697,26 @@ section[data-testid="stSidebar"] .stRadio [aria-checked="true"] div[data-testid=
     background: linear-gradient(180deg, rgba(32, 44, 58, 0.66), rgba(26, 36, 48, 0.88));
 }
 
+.workflow-strip {
+    background: linear-gradient(135deg, rgba(32, 44, 58, 0.92), rgba(26, 36, 48, 0.84));
+}
+
+.workflow-step,
+.scenario-card {
+    background: rgba(32, 44, 58, 0.66);
+    border-color: var(--line);
+}
+
+.workflow-step strong,
+.scenario-card h4 {
+    color: var(--ink-strong);
+}
+
+.workflow-step p,
+.scenario-card p {
+    color: var(--muted);
+}
+
 .floating-action-bar {
     background: rgba(24, 32, 42, 0.92);
     border-color: var(--line);
@@ -1523,7 +1735,7 @@ section[data-testid="stSidebar"] .stRadio [aria-checked="true"] div[data-testid=
 
 [data-testid="stFileUploaderDropzone"] {
     background: linear-gradient(180deg, rgba(32, 44, 58, 0.72), rgba(26, 36, 48, 0.84)) !important;
-    border-color: rgba(212, 136, 92, 0.42) !important;
+    border-color: rgba(119, 212, 202, 0.42) !important;
 }
 
 .stRadio [role="radiogroup"] label {

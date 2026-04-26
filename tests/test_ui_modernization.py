@@ -270,6 +270,18 @@ class TestEmptyState(unittest.TestCase):
             self.assertIn("&lt;i&gt;", html)
 
 
+class TestClientWorkflow(unittest.TestCase):
+    def test_client_workflow_renders_compact_html(self):
+        from ui.components import render_client_workflow
+
+        with patch("streamlit.markdown") as mock_md:
+            render_client_workflow()
+            html = mock_md.call_args[0][0]
+            self.assertIn("workflow-step-grid", html)
+            self.assertIn("<div class='workflow-step'>", html)
+            self.assertNotIn('\n            <div class="workflow-step">', html)
+
+
 class TestPaletteGradientBar(unittest.TestCase):
     def test_gradient_bar_with_colors(self):
         from ui.components import render_palette_gradient_bar
@@ -539,7 +551,7 @@ class TestDarkModeCSS(unittest.TestCase):
 
         self.assertIn("--bg-top: #111820", DARK_MODE_CSS)
         self.assertIn("--ink-strong: #e8edf2", DARK_MODE_CSS)
-        self.assertIn("--accent: #d4885c", DARK_MODE_CSS)
+        self.assertIn("--accent: #77d4ca", DARK_MODE_CSS)
 
     def test_dark_mode_covers_sidebar(self):
         from ui.styles import DARK_MODE_CSS

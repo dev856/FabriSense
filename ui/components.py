@@ -110,6 +110,60 @@ def render_feature_strip() -> None:
             )
 
 
+def render_client_workflow() -> None:
+    steps = [
+        ("1", "Choose", "Upload one textile image or pick a built-in sample."),
+        ("2", "Analyze", "Run the local model to create the material brief."),
+        ("3", "Review", "Scan fabric, color, care, quality, and confidence evidence."),
+        ("4", "Share", "Download the report or compare fabrics for a buying decision."),
+    ]
+    cards = []
+    for number, title, body in steps:
+        cards.append(
+            "<div class='workflow-step'>"
+            f"<span>{_safe_text(number)}</span>"
+            f"<strong>{_safe_text(title)}</strong>"
+            f"<p>{_safe_text(body)}</p>"
+            "</div>"
+        )
+    st.markdown(
+        "<div class='workflow-strip'>"
+        "<div class='workflow-strip-head'>"
+        "<p class='eyebrow'>Client Path</p>"
+        "<h3>Show the journey, then let the result explain itself.</h3>"
+        "</div>"
+        f"<div class='workflow-step-grid'>{''.join(cards)}</div>"
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
+
+def render_demo_scenarios() -> None:
+    scenarios = [
+        (
+            "Single Fabric Brief",
+            "Best for a quick client demo: one image, one polished material read, one downloadable report.",
+        ),
+        (
+            "Compare Two Options",
+            "Best for selection meetings: show which textile is stronger for the target use case.",
+        ),
+        (
+            "Batch Catalog Review",
+            "Best for sellers or sourcing teams: process many images and export a compact CSV.",
+        ),
+    ]
+    cards = []
+    for title, body in scenarios:
+        cards.append(
+            f"<div class='scenario-card'><h4>{_safe_text(title)}</h4><p>{_safe_text(body)}</p></div>"
+        )
+    st.markdown(
+        f"<div class='scenario-grid'>{''.join(cards)}</div>",
+        unsafe_allow_html=True,
+    )
+
+
 def render_sample_gallery(
     sample_dir: str | Path,
     state_key: str = "selected_sample",
