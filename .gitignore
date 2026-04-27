@@ -162,6 +162,7 @@ venv.bak/
 temp_*.jpg
 *.pdf
 reports/
+docs/
 data/analysis_history.json
 data/benchmark_uploads/
 memory/
