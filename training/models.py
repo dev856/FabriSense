@@ -5,6 +5,17 @@ from __future__ import annotations
 from typing import Any
 
 
+SUPPORTED_ARCHITECTURES = (
+    "scratch_cnn",
+    "resnet18",
+    "resnet34",
+    "efficientnet_b0",
+    "mobilenet_v3_small",
+    "vgg16",
+    "alexnet",
+)
+
+
 def _require_torch() -> tuple[Any, Any]:
     try:
         import torch.nn as nn
@@ -75,6 +86,12 @@ def build_model(architecture: str, num_classes: int, pretrained: bool = False):
         model.fc = nn.Linear(model.fc.in_features, num_classes)
         return model, 224
 
+    if architecture == "resnet34":
+        weights = models.ResNet34_Weights.DEFAULT if pretrained else None
+        model = models.resnet34(weights=weights)
+        model.fc = nn.Linear(model.fc.in_features, num_classes)
+        return model, 224
+
     if architecture == "efficientnet_b0":
         weights = models.EfficientNet_B0_Weights.DEFAULT if pretrained else None
         model = models.efficientnet_b0(weights=weights)
@@ -89,6 +106,20 @@ def build_model(architecture: str, num_classes: int, pretrained: bool = False):
         model.classifier[3] = nn.Linear(classifier_input, num_classes)
         return model, 224
 
+    if architecture == "vgg16":
+        weights = models.VGG16_Weights.DEFAULT if pretrained else None
+        model = models.vgg16(weights=weights)
+        classifier_input = model.classifier[6].in_features
+        model.classifier[6] = nn.Linear(classifier_input, num_classes)
+        return model, 224
+
+    if architecture == "alexnet":
+        weights = models.AlexNet_Weights.DEFAULT if pretrained else None
+        model = models.alexnet(weights=weights)
+        classifier_input = model.classifier[6].in_features
+        model.classifier[6] = nn.Linear(classifier_input, num_classes)
+        return model, 224
+
     raise ValueError(
-        f"Unsupported architecture '{architecture}'. Choose from scratch_cnn, resnet18, efficientnet_b0, mobilenet_v3_small."
+        f"Unsupported architecture '{architecture}'. Choose from {', '.join(SUPPORTED_ARCHITECTURES)}."
     )

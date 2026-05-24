@@ -54,6 +54,7 @@ def build_dataloaders(
     batch_size: int,
     num_workers: int = 0,
     weighted_sampler: bool = False,
+    shuffle_train: bool = True,
 ) -> tuple[dict[str, Any], dict[str, int], dict[str, int]]:
     """Create train/val/test dataloaders from CSV manifests."""
 
@@ -107,8 +108,10 @@ def build_dataloaders(
                     num_samples=len(sample_weights),
                     replacement=True,
                 )
-            else:
+            elif shuffle_train:
                 loader_kwargs["shuffle"] = True
+            else:
+                loader_kwargs["shuffle"] = False
         else:
             loader_kwargs["shuffle"] = False
 

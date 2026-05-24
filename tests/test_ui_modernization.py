@@ -278,7 +278,7 @@ class TestClientWorkflow(unittest.TestCase):
             render_client_workflow()
             html = mock_md.call_args[0][0]
             self.assertIn("workflow-step-grid", html)
-            self.assertIn("<div class='workflow-step'>", html)
+            self.assertIn("<div class='workflow-step ivory-card'>", html)
             self.assertNotIn('\n            <div class="workflow-step">', html)
 
 
@@ -549,9 +549,9 @@ class TestDarkModeCSS(unittest.TestCase):
     def test_dark_mode_css_contains_key_overrides(self):
         from ui.styles import DARK_MODE_CSS
 
-        self.assertIn("--bg-top: #111820", DARK_MODE_CSS)
-        self.assertIn("--ink-strong: #e8edf2", DARK_MODE_CSS)
-        self.assertIn("--accent: #77d4ca", DARK_MODE_CSS)
+        self.assertIn("--bg: #0B0F14", DARK_MODE_CSS)
+        self.assertIn("--bg-elev: #121820", DARK_MODE_CSS)
+        self.assertIn("--brass: #C9A86B", DARK_MODE_CSS)
 
     def test_dark_mode_covers_sidebar(self):
         from ui.styles import DARK_MODE_CSS
@@ -1094,6 +1094,131 @@ class TestRadarChartZeroQualityScore(unittest.TestCase):
                                                                             ),
                                                                             "test.jpg",
                                                                         )
+
+class TestConfusionImageInspector(unittest.TestCase):
+    @patch("streamlit.selectbox")
+    @patch("streamlit.columns")
+    @patch("streamlit.markdown")
+    @patch("streamlit.write")
+    @patch("streamlit.success")
+    @patch("streamlit.download_button")
+    @patch("streamlit.dataframe")
+    def test_render_model_info_page_with_misclassifications(
+        self, mock_df, mock_dl_btn, mock_success, mock_write, mock_md, mock_cols, mock_selectbox
+    ):
+        import streamlit as st
+        from ui.pages import render_model_info_page
+        
+        # Setup session state with benchmark results containing predictions
+        st.session_state.model_benchmark_bundle = {
+            "manifest_dir": "data/manifests",
+            "split": "test",
+            "max_examples": 10,
+            "results": [
+                {
+                    "model_name": "TestModel",
+                    "architecture": "resnet50",
+                    "accuracy": 0.8,
+                    "macro_f1": 0.8,
+                    "weighted_f1": 0.8,
+                    "loss": 0.3,
+                    "evaluated_examples": 10,
+                    "checkpoint_path": "checkpoints/TestModel/resnet50.pt",
+                    "predictions": [
+                        {
+                            "filepath": "data/Cotton/1.jpg",
+                            "true_label": "Cotton",
+                            "predicted_label": "Linen",
+                            "confidence": 0.92,
+                        },
+                        {
+                            "filepath": "data/Linen/2.jpg",
+                            "true_label": "Linen",
+                            "predicted_label": "Linen",
+                            "confidence": 0.98,
+                        }
+                    ]
+                }
+            ]
+        }
+        st.session_state.uploaded_benchmark_manifest = None
+        
+        # Mock streamlit columns dynamically to support different column counts (e.g. 2 and 3)
+        def make_mock_col():
+            col = MagicMock()
+            col.__enter__ = MagicMock(return_value=col)
+            col.__exit__ = MagicMock(return_value=False)
+            return col
+            
+        mock_cols.side_effect = lambda n: [make_mock_col() for _ in range(n)]
+        
+        # Mock selectbox responses for the 5 selectboxes in render_model_info_page
+        mock_selectbox.side_effect = [
+            "TestModel | resnet50",              # Inspect checkpoint
+            "data/manifests",                    # Benchmark dataset
+            "test",                              # Benchmark split
+            "TestModel",                         # Inspect benchmark result
+            "🚨 Cotton ➔ Linen (1 sample)"        # Select Mismatch Pair to Investigate
+        ]
+        
+        manifest_entries = [
+            {
+                "display_name": "data/manifests",
+                "manifest_dir": "data/manifests",
+                "dataset_root": "data",
+                "label_count": 10,
+                "counts": {"train": 10, "val": 10, "test": 10},
+                "class_counts": {},
+                "benchmark_mode": "standard",
+                "recommended_split": "test",
+            }
+        ]
+        
+        available_models = [
+            {
+                "display_name": "TestModel | resnet50",
+                "checkpoint_path": "checkpoints/TestModel/resnet50.pt",
+                "model_name": "TestModel",
+                "architecture": "resnet50",
+                "pretrained": True,
+                "metrics": {
+                    "accuracy": 0.8,
+                    "macro_f1": 0.8,
+                    "weighted_f1": 0.8,
+                    "loss": 0.3,
+                },
+                "class_count": 2,
+            }
+        ]
+        
+        mock_client = MagicMock()
+        mock_client.describe.return_value = {
+            "available": True,
+            "labels": ["Cotton", "Linen"],
+            "model_name": "TestModel",
+            "architecture": "resnet50",
+            "class_count": 2,
+            "checkpoint_path": "checkpoints/TestModel/resnet50.pt"
+        }
+        
+        with patch("ui.pages.get_local_model_client", return_value=mock_client):
+            with patch("ui.pages.list_manifest_directories", return_value=manifest_entries):
+                with patch("ui.pages.list_available_local_models", return_value=available_models):
+                    with patch("ui.pages.ModelReviewStore") as mock_store:
+                        mock_store.return_value.load.return_value = []
+                        try:
+                            render_model_info_page()
+                        except Exception as e:
+                            import traceback
+                            print("EXCEPTION OCCURRED:", e)
+                            traceback.print_exc()
+        
+        # Verify that selectbox was called to choose mismatch pair
+        mock_selectbox.assert_any_call(
+            "Select Mismatch Pair to Investigate",
+            options=["🚨 Cotton ➔ Linen (1 sample)"],
+            key="misclass_selector_TestModel"
+        )
 
 
 if __name__ == "__main__":

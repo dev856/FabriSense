@@ -39,7 +39,7 @@ def render_sidebar_brand() -> None:
 def render_page_intro(kicker: str, title: str, body: str) -> None:
     st.markdown(
         f"""
-        <section class="page-intro">
+        <section class="page-intro ivory-card">
             <p class="eyebrow">{kicker}</p>
             <h2>{title}</h2>
             <p class="page-intro-text">{body}</p>
@@ -52,34 +52,18 @@ def render_page_intro(kicker: str, title: str, body: str) -> None:
 def render_hero() -> None:
     st.markdown(
         """
-        <section class="hero-shell">
+        <section class="hero-shell atelier-home-card ivory-card">
             <div class="hero-copy">
-                <p class="eyebrow">TEXTILE INTELLIGENCE</p>
-                <h1>Turn a fabric image into a sharp, presentation-ready material brief.</h1>
+                <p class="eyebrow">ATELIER NOIR</p>
+                <h1>Turn a fabric image into a material passport.</h1>
                 <p class="hero-text">
-                    FabriSense puts the locally trained classifier, checkpoint inspection, and benchmark-ready review flows in one cleaner product experience.
+                    Upload a close-up textile image and generate a polished read on fabric family,
+                    surface feel, color palette, care, quality, and local model evidence.
                 </p>
                 <div class="hero-tags">
-                    <span>Trained model</span>
-                    <span>Local evidence</span>
-                    <span>Benchmark lab</span>
-                </div>
-            </div>
-            <div class="hero-stats">
-                <div class="stat-card">
-                    <div class="stat-icon">&#10022;</div>
-                    <h4>Local model briefing</h4>
-                    <p>Use the trained classifier output with confidence, alternatives, and checkpoint context.</p>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon">&#9646;</div>
-                    <h4>Checkpoint evidence</h4>
-                    <p>Surface confidence, top alternatives, and saved review notes directly in the result flow.</p>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon">&#8644;</div>
-                    <h4>Benchmark with clarity</h4>
-                    <p>Compare checkpoints on known splits or uploaded labeled ZIPs without leaving the app.</p>
+                    <span>Local model</span>
+                    <span>Palette story</span>
+                    <span>Export ready</span>
                 </div>
             </div>
         </section>
@@ -105,7 +89,7 @@ def render_feature_strip() -> None:
     for col, (title, body) in zip(cols, items):
         with col:
             st.markdown(
-                f"<div class='info-card'><h3>{title}</h3><p>{body}</p></div>",
+                f"<div class='info-card ivory-card'><h3>{title}</h3><p>{body}</p></div>",
                 unsafe_allow_html=True,
             )
 
@@ -120,7 +104,7 @@ def render_client_workflow() -> None:
     cards = []
     for number, title, body in steps:
         cards.append(
-            "<div class='workflow-step'>"
+            "<div class='workflow-step ivory-card'>"
             f"<span>{_safe_text(number)}</span>"
             f"<strong>{_safe_text(title)}</strong>"
             f"<p>{_safe_text(body)}</p>"
@@ -156,7 +140,7 @@ def render_demo_scenarios() -> None:
     cards = []
     for title, body in scenarios:
         cards.append(
-            f"<div class='scenario-card'><h4>{_safe_text(title)}</h4><p>{_safe_text(body)}</p></div>"
+            f"<div class='scenario-card ivory-card'><h4>{_safe_text(title)}</h4><p>{_safe_text(body)}</p></div>"
         )
     st.markdown(
         f"<div class='scenario-grid'>{''.join(cards)}</div>",
@@ -238,14 +222,12 @@ def render_upload_panel(
         """,
         unsafe_allow_html=True,
     )
-    st.markdown("<div class='upload-shell'>", unsafe_allow_html=True)
     uploaded = st.file_uploader(
         prompt,
         type=sorted(ImagePreprocessor.SUPPORTED_FORMATS),
         accept_multiple_files=False,
         key=key,
     )
-    st.markdown("</div>", unsafe_allow_html=True)
     if uploaded is None:
         return None
 
@@ -264,6 +246,68 @@ def render_upload_panel(
     return image, uploaded.name
 
 
+def metric_card(label: str, value: Any, sub: str = "") -> None:
+    """Render an Atelier Noir metric card."""
+    st.markdown(
+        f"""
+        <div class="metric-card fs-metric-card ivory-card">
+            <div class="metric-label">{_safe_text(label)}</div>
+            <div class="fs-metric-value">{_safe_text(value)}</div>
+            <div class="fs-metric-sub">{_safe_text(sub)}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def palette_bar(colors: Iterable[Dict[str, Any]] | Iterable[str]) -> None:
+    """Render a compact segmented palette bar from color dicts or hex strings."""
+    color_list = list(colors)
+    if not color_list:
+        return
+
+    chips = []
+    for item in color_list:
+        if isinstance(item, dict):
+            hex_code = _safe_hex(item.get("hex"))
+            label = f"{item.get('name', 'Unknown')} {hex_code}"
+        else:
+            hex_code = _safe_hex(item)
+            label = hex_code
+        chips.append(
+            f'<div class="fs-palette-chip" style="background:{hex_code};" title="{_safe_text(label)}"></div>'
+        )
+
+    st.markdown(
+        f'<div class="fs-palette-bar">{"".join(chips)}</div>',
+        unsafe_allow_html=True,
+    )
+
+
+def material_passport(title: str, rows: Dict[str, Any]) -> None:
+    """Render the ivory two-column Material Passport card with hairline dividers."""
+    items = []
+    for label, value in rows.items():
+        items.append(
+            "<div class='fs-passport-item'>"
+            f"<div class='fs-passport-label'>{_safe_text(label)}</div>"
+            f"<strong class='fs-passport-value'>{_safe_text(value)}</strong>"
+            "</div>"
+        )
+    st.markdown(
+        f"""
+        <section class="fs-card fs-passport ivory-card">
+            <div>
+                <p class="eyebrow">Material Passport</p>
+                <h3>{_safe_text(title)}</h3>
+            </div>
+            <div class="fs-passport-grid">{''.join(items)}</div>
+        </section>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def render_metric_band(metrics: Dict[str, Any]) -> None:
     cols = st.columns(4)
     cards = [
@@ -279,10 +323,7 @@ def render_metric_band(metrics: Dict[str, Any]) -> None:
     ]
     for col, (title, value) in zip(cols, cards):
         with col:
-            st.markdown(
-                f"<div class='metric-card'><p>{title}</p><h3>{value}</h3></div>",
-                unsafe_allow_html=True,
-            )
+            metric_card(title, value)
 
 
 def render_highlight_banner(title: str, body: str) -> None:
@@ -303,7 +344,7 @@ def render_color_palette(colors: Iterable[Dict[str, Any]], harmony: str) -> None
             swatch = _safe_hex(color.get("hex"))
             st.markdown(
                 f"""
-                <div class="color-card">
+                <div class="color-card ivory-card">
                     <div class="swatch" style="background:{swatch};"></div>
                     <div>
                         <h4>{_safe_text(color.get("name", "Unknown"))}</h4>
@@ -329,6 +370,83 @@ def render_mini_palette(colors: Iterable[Dict[str, Any]]) -> None:
         )
 
 
+def _get_drape_percentage(drape_val: Any) -> int:
+    drape_str = str(drape_val or "").strip().lower()
+    if "fluid" in drape_str:
+        return 85
+    elif "moderate" in drape_str:
+        return 60
+    elif "structured" in drape_str:
+        return 40
+    elif "stiff" in drape_str:
+        return 20
+    elif "high" in drape_str:
+        return 80
+    elif "medium" in drape_str:
+        return 50
+    elif "low" in drape_str:
+        return 30
+    return 50
+
+
+def _get_texture_percentage(texture_val: Any, hand_feel_val: Any, hand_feel_score_val: Any = None) -> int:
+    if isinstance(hand_feel_score_val, (int, float)):
+        return min(max(int(float(hand_feel_score_val) * 10), 0), 100)
+
+    if hand_feel_score_val:
+        try:
+            val_str = str(hand_feel_score_val).split("/")[0].strip().rstrip("%")
+            val_f = float(val_str)
+            return min(max(int(val_f * 10) if val_f <= 10 else int(val_f), 0), 100)
+        except ValueError:
+            pass
+
+    text = str(hand_feel_val or texture_val or "").strip().lower()
+    if not text:
+        return 50
+
+    if "excellent" in text or "very high" in text:
+        return 90
+    elif "high" in text or "dense" in text or "thick" in text:
+        return 80
+    elif "good" in text or "moderate" in text or "medium" in text:
+        return 60
+    elif "fair" in text or "average" in text:
+        return 45
+    elif "low" in text or "thin" in text or "soft" in text:
+        return 30
+    elif "very low" in text or "fine" in text:
+        return 15
+    return 50
+
+
+def _build_circular_svg(percentage: int, color_var: str = "var(--accent)") -> str:
+    return f"""
+    <svg width="70" height="70" viewBox="0 0 36 36" style="filter: drop-shadow(0 4px 10px rgba(18,28,36,0.08));">
+      <path
+        d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831"
+        fill="none"
+        stroke="rgba(19, 37, 40, 0.08)"
+        stroke-width="3"
+      />
+      <path
+        stroke-dasharray="{percentage}, 100"
+        d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831"
+        fill="none"
+        stroke="{color_var}"
+        stroke-width="3"
+        stroke-linecap="round"
+        style="transition: stroke-dasharray 0.6s cubic-bezier(0.16, 1, 0.3, 1);"
+      />
+      <text x="18" y="20.35" font-family="'Manrope', sans-serif" font-size="8" font-weight="800" text-anchor="middle" fill="var(--ink-strong)">{percentage}%</text>
+    </svg>
+    """
+
+
 def render_compare_card(
     title: str, analysis: Dict[str, Any], image: Image.Image
 ) -> None:
@@ -339,10 +457,16 @@ def render_compare_card(
     fabric = llm.get("fabric_type", {})
     pattern = llm.get("pattern", {})
 
+    drape_pct = _get_drape_percentage(texture.get("drape"))
+    texture_pct = _get_texture_percentage(texture.get("primary"), texture.get("hand_feel"), texture.get("hand_feel_score"))
+
+    texture_svg = _build_circular_svg(texture_pct, "var(--accent)")
+    drape_svg = _build_circular_svg(drape_pct, "var(--accent-cool)")
+
     st.image(image, caption=title, width="stretch")
     st.markdown(
         f"""
-        <div class="compare-card">
+        <div class="compare-card ivory-card">
             <h3>{_safe_text(title)}</h3>
             <div class="compare-card-grid">
                 <div><span>Fabric</span><strong>{_safe_text(fabric.get("primary", "N/A"))}</strong></div>
@@ -351,6 +475,18 @@ def render_compare_card(
                 <div><span>Weight</span><strong>{_safe_text(texture.get("weight", "N/A"))}</strong></div>
                 <div><span>Quality</span><strong>{_safe_text(quality.get("score", "N/A"))} / 10</strong></div>
                 <div><span>Color</span><strong>{_safe_text(dominant.get("name", "N/A"))}</strong></div>
+            </div>
+            <div style="display: flex; justify-content: space-around; margin-top: 1rem; padding: 0.75rem 0 0.25rem; border-top: 1px solid var(--line);">
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 0.35rem;">
+                    <span style="font-size: 0.68rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted-soft);">Texture density</span>
+                    {texture_svg}
+                    <span style="font-size: 0.72rem; font-weight: 700; color: var(--ink);">{_safe_text(texture.get("hand_feel", "N/A"))}</span>
+                </div>
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 0.35rem;">
+                    <span style="font-size: 0.68rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted-soft);">Drape flow</span>
+                    {drape_svg}
+                    <span style="font-size: 0.72rem; font-weight: 700; color: var(--ink);">{_safe_text(texture.get("drape", "N/A"))}</span>
+                </div>
             </div>
         </div>
         """,
@@ -361,28 +497,34 @@ def render_compare_card(
 
 def render_key_value_block(title: str, rows: Dict[str, Any]) -> None:
     st.markdown(f"### {title}")
-    st.markdown("<div class='result-card'>", unsafe_allow_html=True)
+    items = []
     for label, value in rows.items():
-        st.markdown(f"**{label}**  \n{value}")
-    st.markdown("</div>", unsafe_allow_html=True)
+        items.append(
+            "<div class='kv-row'>"
+            f"<span class='kv-label'>{_safe_text(label)}</span>"
+            f"<span class='kv-value'>{_safe_text(value)}</span>"
+            "</div>"
+        )
+    st.markdown(
+        f"<div class='result-card ivory-card'>{''.join(items)}</div>",
+        unsafe_allow_html=True,
+    )
 
 
 def render_list_block(title: str, items: Iterable[str]) -> None:
     st.markdown(f"### {title}")
-    st.markdown("<div class='result-card'>", unsafe_allow_html=True)
     values = list(items)
     if not values:
-        st.write("No data available.")
+        body = "<p>No data available.</p>"
     else:
-        for item in values:
-            st.write(f"- {item}")
-    st.markdown("</div>", unsafe_allow_html=True)
+        body = "<ul>" + "".join(f"<li>{_safe_text(item)}</li>" for item in values) + "</ul>"
+    st.markdown(f"<div class='result-card ivory-card'>{body}</div>", unsafe_allow_html=True)
 
 
 def render_empty_state(icon: str, title: str, body: str) -> None:
     st.markdown(
         f"""
-        <div class="empty-state-card">
+        <div class="empty-state-card ivory-card">
             <div class="empty-state-icon">{icon}</div>
             <h3>{_safe_text(title)}</h3>
             <p>{_safe_text(body)}</p>
@@ -444,31 +586,49 @@ def render_confusion_matrix_heatmap(
         st.caption("Install plotly to view the interactive confusion matrix heatmap.")
         return
 
+    is_dark = st.session_state.get("dark_mode", False)
+    if is_dark:
+        colorscale = [
+            [0, "#121820"],
+            [0.25, "#2A313A"],
+            [0.5, "#6B6257"],
+            [0.75, "#C9A86B"],
+            [1, "#DDBB7E"],
+        ]
+        text_color = "#FAF7F2"
+        title_color = "#FAF7F2"
+        tick_color = "#C9A86B"
+    else:
+        colorscale = [
+            [0, "#f7f3ec"],
+            [0.25, "#e4ddd1"],
+            [0.5, "#d4a574"],
+            [0.75, "#bb6c3f"],
+            [1, "#9d5630"],
+        ]
+        text_color = "#14212b"
+        title_color = "#14212b"
+        tick_color = "#5e6b77"
+
     fig = go.Figure(
         data=go.Heatmap(
             z=confusion_matrix,
             x=labels,
             y=labels,
-            colorscale=[
-                [0, "#f7f3ec"],
-                [0.25, "#e4ddd1"],
-                [0.5, "#d4a574"],
-                [0.75, "#bb6c3f"],
-                [1, "#9d5630"],
-            ],
+            colorscale=colorscale,
             text=[[str(v) for v in row] for row in confusion_matrix],
             texttemplate="%{text}",
-            textfont={"size": 11, "color": "#14212b"},
+            textfont={"size": 11, "color": text_color},
             hoverongaps=False,
             hovertemplate="Predicted: %{x}<br>Actual: %{y}<br>Count: %{z}<extra></extra>",
         )
     )
     fig.update_layout(
-        title=dict(text="Confusion Matrix", font=dict(size=16, color="#14212b")),
+        title=dict(text="Confusion Matrix", font=dict(size=16, color=title_color)),
         xaxis_title="Predicted Label",
         yaxis_title="True Label",
-        xaxis=dict(tickangle=45, tickfont=dict(size=10)),
-        yaxis=dict(tickfont=dict(size=10)),
+        xaxis=dict(tickangle=45, tickfont=dict(size=10, color=tick_color)),
+        yaxis=dict(tickfont=dict(size=10, color=tick_color)),
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         margin=dict(l=80, r=30, t=60, b=100),
@@ -488,6 +648,11 @@ def render_color_wheel(colors: Iterable[Dict[str, Any]]) -> None:
     color_list = list(colors)
     if not color_list:
         return
+
+    is_dark = st.session_state.get("dark_mode", False)
+    title_color = "#FAF7F2" if is_dark else "#14212b"
+    legend_font_color = "#E8E3D8" if is_dark else "#243240"
+    legend_bg = "rgba(18,24,32,0.72)" if is_dark else "rgba(255,255,255,0.5)"
 
     fig = go.Figure()
     for i, color in enumerate(color_list):
@@ -510,7 +675,7 @@ def render_color_wheel(colors: Iterable[Dict[str, Any]]) -> None:
         )
 
     fig.update_layout(
-        title=dict(text="Color Distribution", font=dict(size=16, color="#14212b")),
+        title=dict(text="Color Distribution", font=dict(size=16, color=title_color)),
         polar=dict(
             radialaxis=dict(
                 visible=False,
@@ -522,7 +687,7 @@ def render_color_wheel(colors: Iterable[Dict[str, Any]]) -> None:
         paper_bgcolor="rgba(0,0,0,0)",
         showlegend=True,
         legend=dict(
-            font=dict(size=11, color="#243240"), bgcolor="rgba(255,255,255,0.5)"
+            font=dict(size=11, color=legend_font_color), bgcolor=legend_bg
         ),
         height=380,
         margin=dict(l=20, r=20, t=60, b=20),
@@ -545,6 +710,22 @@ def render_radar_chart(
     if not labels or not values or len(labels) != len(values):
         return
 
+    is_dark = st.session_state.get("dark_mode", False)
+    if is_dark:
+        fill_color = "rgba(201, 168, 107, 0.18)"
+        line_color = "#C9A86B"
+        marker_color = "#DDBB7E"
+        radial_tick_color = "#B8B2A9"
+        angular_tick_color = "#E8E3D8"
+        title_color = "#FAF7F2"
+    else:
+        fill_color = "rgba(187, 108, 63, 0.18)"
+        line_color = "#bb6c3f"
+        marker_color = "#bb6c3f"
+        radial_tick_color = "#5e6b77"
+        angular_tick_color = "#243240"
+        title_color = "#14212b"
+
     clamped = [min(max(v, 0), max_value) for v in values]
     fig = go.Figure()
     fig.add_trace(
@@ -552,9 +733,9 @@ def render_radar_chart(
             r=clamped + [clamped[0]],
             theta=labels + [labels[0]],
             fill="toself",
-            fillcolor="rgba(187, 108, 63, 0.18)",
-            line=dict(color="#bb6c3f", width=2.5),
-            marker=dict(size=6, color="#bb6c3f"),
+            fillcolor=fill_color,
+            line=dict(color=line_color, width=2.5),
+            marker=dict(size=6, color=marker_color),
             name=title,
         )
     )
@@ -563,13 +744,13 @@ def render_radar_chart(
             radialaxis=dict(
                 visible=True,
                 range=[0, max_value],
-                tickfont=dict(size=10, color="#5e6b77"),
+                tickfont=dict(size=10, color=radial_tick_color),
             ),
-            angularaxis=dict(tickfont=dict(size=11, color="#243240")),
+            angularaxis=dict(tickfont=dict(size=11, color=angular_tick_color)),
             bgcolor="rgba(0,0,0,0)",
         ),
         title=dict(
-            text=title, font=dict(size=16, color="#14212b", family="Fraunces, serif")
+            text=title, font=dict(size=16, color=title_color, family="Fraunces, serif")
         ),
         paper_bgcolor="rgba(0,0,0,0)",
         showlegend=False,
@@ -594,13 +775,38 @@ def render_gauge_chart(
     if thresholds is None:
         thresholds = (max_value * 0.4, max_value * 0.7)
 
+    is_dark = st.session_state.get("dark_mode", False)
+
     clamped = min(max(value, 0), max_value)
     pct = clamped / max_value * 100
-    color = (
-        "#9a4b49"
-        if pct < thresholds[0] / max_value * 100
-        else ("#9f6a24" if pct < thresholds[1] / max_value * 100 else "#2f7d63")
-    )
+    if is_dark:
+        color = (
+            "#8B5E3C"
+            if pct < thresholds[0] / max_value * 100
+            else ("#B08968" if pct < thresholds[1] / max_value * 100 else "#C9A86B")
+        )
+        title_color = "#FAF7F2"
+        tick_color = "#B8B2A9"
+        threshold_line_color = "#FAF7F2"
+        step_colors = [
+            "rgba(139, 94, 60, 0.16)",
+            "rgba(201, 168, 107, 0.12)",
+            "rgba(201, 168, 107, 0.20)",
+        ]
+    else:
+        color = (
+            "#8B5E3C"
+            if pct < thresholds[0] / max_value * 100
+            else ("#B08968" if pct < thresholds[1] / max_value * 100 else "#A8834A")
+        )
+        title_color = "#14212b"
+        tick_color = "#5e6b77"
+        threshold_line_color = "#14212b"
+        step_colors = [
+            "rgba(139, 94, 60, 0.10)",
+            "rgba(176, 137, 104, 0.10)",
+            "rgba(201, 168, 107, 0.14)",
+        ]
 
     fig = go.Figure(
         go.Indicator(
@@ -609,29 +815,29 @@ def render_gauge_chart(
             domain=dict(x=[0, 1], y=[0, 1]),
             title=dict(
                 text=title,
-                font=dict(size=16, color="#14212b", family="Fraunces, serif"),
+                font=dict(size=16, color=title_color, family="Fraunces, serif"),
             ),
             number=dict(font=dict(size=36, color=color, family="Fraunces, serif")),
             gauge=dict(
                 axis=dict(
-                    range=[0, max_value], tickfont=dict(size=10, color="#5e6b77")
+                    range=[0, max_value], tickfont=dict(size=10, color=tick_color)
                 ),
                 bar=dict(color=color, thickness=0.35),
                 bgcolor="rgba(0,0,0,0)",
                 borderwidth=0,
                 steps=[
-                    dict(range=[0, thresholds[0]], color="rgba(154, 75, 73, 0.08)"),
+                    dict(range=[0, thresholds[0]], color=step_colors[0]),
                     dict(
                         range=[thresholds[0], thresholds[1]],
-                        color="rgba(159, 106, 36, 0.08)",
+                        color=step_colors[1],
                     ),
                     dict(
                         range=[thresholds[1], max_value],
-                        color="rgba(47, 125, 99, 0.08)",
+                        color=step_colors[2],
                     ),
                 ],
                 threshold=dict(
-                    line=dict(color="#14212b", width=2),
+                    line=dict(color=threshold_line_color, width=2),
                     thickness=0.8,
                     value=max_value * 0.8,
                 ),
@@ -659,11 +865,24 @@ def render_confusion_sankey(
     if not confusion_matrix or not labels:
         return
 
+    is_dark = st.session_state.get("dark_mode", False)
+    if is_dark:
+        warm = "rgba(201, 168, 107, 0.25)"
+        misclass = "rgba(139, 94, 60, 0.35)"
+        actual_node_color = "#C9A86B"
+        predicted_node_color = "#DDBB7E"
+        title_color = "#FAF7F2"
+        font_color = "#E8E3D8"
+    else:
+        warm = "rgba(187, 108, 63, 0.25)"
+        misclass = "rgba(139, 94, 60, 0.28)"
+        actual_node_color = "#A8834A"
+        predicted_node_color = "#C9A86B"
+        title_color = "#14212b"
+        font_color = "#243240"
+
     n = len(labels)
     source, target, value, link_colors = [], [], [], []
-    warm = "rgba(187, 108, 63, 0.25)"
-    cool = "rgba(47, 116, 135, 0.25)"
-    misclass = "rgba(154, 75, 73, 0.30)"
 
     for i in range(n):
         for j in range(n):
@@ -674,7 +893,7 @@ def render_confusion_sankey(
                 value.append(count)
                 link_colors.append(warm if i == j else misclass)
 
-    node_colors = ["#bb6c3f"] * n + ["#2f7487"] * n
+    node_colors = [actual_node_color] * n + [predicted_node_color] * n
     node_labels = [f"Actual: {l}" for l in labels] + [f"Predicted: {l}" for l in labels]
 
     fig = go.Figure(
@@ -692,10 +911,10 @@ def render_confusion_sankey(
     fig.update_layout(
         title=dict(
             text="Misclassification Flow",
-            font=dict(size=16, color="#14212b", family="Fraunces, serif"),
+            font=dict(size=16, color=title_color, family="Fraunces, serif"),
         ),
         paper_bgcolor="rgba(0,0,0,0)",
-        font=dict(size=11, color="#243240"),
+        font=dict(size=11, color=font_color),
         height=max(400, n * 38),
         margin=dict(l=10, r=10, t=60, b=20),
     )
@@ -851,17 +1070,7 @@ def render_palette_gradient_bar(colors: Iterable[Dict[str, Any]]) -> None:
     )
     st.markdown(
         f"""
-        <div title="{_safe_text(tooltip_parts)}" style="
-            height: 36px;
-            border-radius: 18px;
-            background: {gradient};
-            border: 1px solid rgba(20, 33, 43, 0.08);
-            box-shadow: 0 6px 20px rgba(18, 28, 36, 0.10);
-            cursor: pointer;
-            margin-bottom: 0.6rem;
-            transition: transform 200ms ease, box-shadow 200ms ease;
-        " onmouseover="this.style.transform='scaleY(1.25)';this.style.boxShadow='0 10px 30px rgba(18,28,36,0.16)'"
-           onmouseout="this.style.transform='scaleY(1)';this.style.boxShadow='0 6px 20px rgba(18,28,36,0.10)'">
+        <div class="fs-gradient-bar" title="{_safe_text(tooltip_parts)}" style="background:{gradient}; height:16px; border:1px solid var(--line);">
         </div>
         """,
         unsafe_allow_html=True,

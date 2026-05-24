@@ -160,6 +160,7 @@ venv.bak/
 
 # Project-specific generated files
 temp_*.jpg
+test_out*.txt
 *.pdf
 reports/
 docs/
