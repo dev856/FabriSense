@@ -14,17 +14,17 @@ from ui.pages import (
     render_model_info_page,
     render_results_page,
 )
-from ui.styles import APP_CSS, DARK_MODE_CSS
+from ui.styles import APP_CSS, DARK_MODE_CSS, get_dynamic_theme_css
 
 NAV_ICONS = [
     "search",
-    "layers",
-    "arrow-left-right",
-    "clock-history",
-    "book",
-    "flower1",
-    "cpu",
-    "info-circle",
+    "grid",
+    "compare",
+    "clock",
+    "guide",
+    "spark",
+    "model",
+    "info",
 ]
 NAV_LABELS = [
     "Analyze",
@@ -64,28 +64,42 @@ def _apply_dark_mode() -> None:
         st.markdown(DARK_MODE_CSS, unsafe_allow_html=True)
 
 
+def _apply_dynamic_theme() -> None:
+    if st.session_state.get("analysis"):
+        palette = st.session_state.analysis.get("color_palette", {})
+        dominant = palette.get("dominant_color", {})
+        if dominant and dominant.get("hex"):
+            hex_color = dominant.get("hex")
+            is_dark = bool(st.session_state.get("dark_mode"))
+            dynamic_css = get_dynamic_theme_css(hex_color, is_dark_mode=is_dark)
+            st.markdown(dynamic_css, unsafe_allow_html=True)
+
+
 def _render_sidebar_navigation() -> str:
     with st.sidebar:
         render_sidebar_brand()
+        options = [
+            "Analyze",
+            "Batch",
+            "Compare",
+            "History",
+            "Guide",
+            "Care",
+            "Models",
+            "About",
+        ]
         selected = st.radio(
             "Navigate",
-            NAV_LABELS,
+            options,
             label_visibility="collapsed",
             index=NAV_IDS.index(st.session_state.get("nav_page", "analyze")),
-            key="sidebar_nav_radio",
         )
         st.divider()
-        st.toggle(
-            "\U0001f319 Dark Mode",
-            key="dark_mode",
-        )
-        page_id = NAV_IDS[NAV_LABELS.index(selected)]
-        if page_id != st.session_state.get("nav_page", "analyze"):
+        st.toggle("\u25d0 Dark Mode", key="dark_mode")
+        page_id = NAV_IDS[options.index(selected)]
+        if page_id != st.session_state.get("nav_page"):
             st.session_state.nav_page = page_id
             st.rerun()
-        st.caption(
-            "Built for designers, textile students, sellers, and presentation-ready product demos."
-        )
     return page_id
 
 
@@ -116,7 +130,7 @@ def _render_selected_page(page_id: str) -> None:
 
 def main() -> None:
     st.set_page_config(
-        page_title="FabriSense",
+        page_title="FabriSense | Atelier Noir",
         page_icon=str(Path("assets/favicon.ico"))
         if Path("assets/favicon.ico").exists()
         else None,
@@ -126,6 +140,7 @@ def main() -> None:
     st.markdown(APP_CSS, unsafe_allow_html=True)
     _initialize_session_state()
     _apply_dark_mode()
+    _apply_dynamic_theme()
 
     page_id = _render_sidebar_navigation()
     _render_selected_page(page_id)

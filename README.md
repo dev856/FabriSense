@@ -37,6 +37,9 @@ The app is designed for practical analysis workflows: single-image review, side-
 - Trained checkpoints and run artifacts are stored under `artifacts/`.
 - Benchmark utilities support checkpoint comparison and manifest-based evaluation.
 - Review history and benchmark outputs are persisted locally for repeatable analysis.
+- Training supports `scratch_cnn`, `resnet18`, `resnet34`, `efficientnet_b0`, `mobilenet_v3_small`, `vgg16`, and `alexnet`.
+- Latest phase-1 trained checkpoints include EfficientNet-B0 (macro F1 0.971), ResNet-34 (macro F1 0.955), AlexNet (macro F1 0.866), and VGG-16 (macro F1 0.860).
+- Large checkpoint binaries use Git LFS because some transfer-learning models exceed normal GitHub file limits.
 
 ## Analysis Modes
 

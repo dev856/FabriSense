@@ -135,6 +135,7 @@ def evaluate_checkpoint_on_manifest(
         image_size=image_size,
         batch_size=batch_size,
         num_workers=num_workers,
+        shuffle_train=False,
     )
     labels = [label for label, _ in sorted(manifest_label_to_index.items(), key=lambda item: item[1])]
 
@@ -142,7 +143,7 @@ def evaluate_checkpoint_on_manifest(
     model = model.to(device)
     criterion = torch.nn.CrossEntropyLoss()
 
-    loss, y_true, y_pred = _evaluate(
+    loss, y_true, y_pred, y_prob = _evaluate(
         model=model,
         loader=loaders[split],
         criterion=criterion,
@@ -150,6 +151,23 @@ def evaluate_checkpoint_on_manifest(
         torch=torch,
         max_examples=max_examples,
     )
+
+    records = loaders[split].dataset.records
+    prediction_details = []
+    for i in range(len(y_true)):
+        record = records[i]
+        true_idx = y_true[i]
+        pred_idx = y_pred[i]
+        true_label = labels[true_idx] if true_idx < len(labels) else "unknown"
+        pred_label = labels[pred_idx] if pred_idx < len(labels) else "unknown"
+
+        prediction_details.append({
+            "filepath": record["filepath"],
+            "true_label": true_label,
+            "predicted_label": pred_label,
+            "confidence": y_prob[i],
+        })
+
     metrics = classification_metrics(y_true, y_pred, labels)
     metrics["loss"] = loss
     metrics["evaluated_examples"] = len(y_true)
@@ -158,6 +176,7 @@ def evaluate_checkpoint_on_manifest(
     metrics["checkpoint_path"] = str(Path(checkpoint_path).resolve())
     metrics["model_name"] = Path(checkpoint_path).resolve().parent.name
     metrics["architecture"] = checkpoint.get("architecture", "unknown")
+    metrics["predictions"] = prediction_details
     return metrics
 
 
@@ -191,12 +210,13 @@ def _evaluate(
     device,
     torch: Any,
     max_examples: int | None = None,
-) -> tuple[float, list[int], list[int]]:
+) -> tuple[float, list[int], list[int], list[float]]:
     model.eval()
     running_loss = 0.0
     total_examples = 0
     y_true: list[int] = []
     y_pred: list[int] = []
+    y_prob: list[float] = []
 
     with torch.no_grad():
         for images, labels in loader:
@@ -208,12 +228,15 @@ def _evaluate(
             logits = model(images)
             loss = criterion(logits, labels)
             predictions = torch.argmax(logits, dim=1)
+            probs = torch.softmax(logits, dim=1)
+            pred_probs = probs.max(dim=1).values
 
             if max_examples is not None:
                 remaining = max_examples - total_examples
                 if remaining < images.size(0):
                     labels = labels[:remaining]
                     predictions = predictions[:remaining]
+                    pred_probs = pred_probs[:remaining]
                     loss = criterion(logits[:remaining], labels)
                     batch_size = remaining
                 else:
@@ -225,8 +248,9 @@ def _evaluate(
             total_examples += batch_size
             y_true.extend(labels.cpu().tolist())
             y_pred.extend(predictions.cpu().tolist())
+            y_prob.extend(pred_probs.cpu().tolist())
 
-    return running_loss / max(total_examples, 1), y_true, y_pred
+    return running_loss / max(total_examples, 1), y_true, y_pred, y_prob
 
 
 def _read_json_if_exists(path: Path) -> dict[str, Any]:

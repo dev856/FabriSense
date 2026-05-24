@@ -59,6 +59,9 @@ from ui.components import (
     render_interactive_table,
     render_key_value_block,
     render_list_block,
+    material_passport,
+    metric_card,
+    palette_bar,
     render_metric_band,
     render_page_intro,
     render_palette_gradient_bar,
@@ -552,6 +555,16 @@ def _safe_text(value: Any) -> str:
     return html_escape("" if value is None else str(value), quote=True)
 
 
+def _confidence_percent(value: Any) -> float:
+    try:
+        confidence = float(value)
+    except (TypeError, ValueError):
+        return 0.0
+    if confidence <= 1.0:
+        confidence *= 100
+    return min(max(confidence, 0.0), 100.0)
+
+
 def _score_value(value: Any, default: float = 5.0) -> float:
     """Convert local qualitative scores into a 0-10 chart value."""
     if isinstance(value, (int, float)):
@@ -588,7 +601,11 @@ def _score_value(value: Any, default: float = 5.0) -> float:
 
 
 def render_home_page() -> None:
-    render_hero()
+    _, hero_center, _ = st.columns([0.55, 2.9, 0.55])
+    with hero_center:
+        st.markdown('<div class="ivory-card">', unsafe_allow_html=True)
+        render_hero()
+        st.markdown("</div>", unsafe_allow_html=True)
     render_client_workflow()
     render_feature_strip()
 
@@ -598,16 +615,18 @@ def render_home_page() -> None:
 
     _render_workflow_banner("analysis", analysis_mode)
 
-    input_left, input_right = st.columns((1.05, 0.95))
-    with input_left:
-        upload_choice = render_upload_panel(
-            title="Upload a fabric image",
-            prompt="Drop a close-up or flat-lay textile image for analysis",
-        )
-    with input_right:
-        sample_choice = render_sample_gallery(
-            "assets/sample_fabrics", state_key="home_selected_sample"
-        )
+    input_col, preview_col = st.columns([5, 7], gap="large")
+    with input_col:
+        with st.container(border=True):
+            upload_choice = render_upload_panel(
+                title="Upload a fabric image",
+                prompt="Drop a close-up or flat-lay textile image for analysis",
+            )
+    with preview_col:
+        with st.container(border=True):
+            sample_choice = render_sample_gallery(
+                "assets/sample_fabrics", state_key="home_selected_sample"
+            )
     choice = upload_choice or sample_choice
 
     if choice is None:
@@ -706,9 +725,10 @@ def render_results_page(
     model_review_tab = tabs[4] if model_prediction else None
 
     with overview_tab:
-        left, right = st.columns((0.95, 1.05))
-        with left:
-            st.image(image, caption=image_name, width="stretch")
+        img_col, data_col = st.columns([0.9, 1.1], gap="large")
+        with img_col:
+            st.markdown('<div class="result-sticky">', unsafe_allow_html=True)
+            st.image(image, caption=image_name, use_container_width=True)
             action_cols = st.columns(2)
             with action_cols[0]:
                 if report_bytes:
@@ -723,10 +743,12 @@ def render_results_page(
                 if st.button("Start New Analysis", width="stretch"):
                     _clear_single_analysis_state()
                     st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
 
-        with right:
-            render_key_value_block(
-                "Material Snapshot",
+        with data_col:
+            st.markdown('<div class="ivory-card">', unsafe_allow_html=True)
+            material_passport(
+                image_name,
                 {
                     "Primary Fabric": fabric.get("primary", "N/A"),
                     "Subtype": fabric.get("sub_type", "N/A"),
@@ -737,17 +759,14 @@ def render_results_page(
                     "Hand Feel": texture.get("hand_feel", "N/A"),
                     "Weight": texture.get("weight", "N/A"),
                     "Drape": texture.get("drape", "N/A"),
-                },
-            )
-            render_key_value_block(
-                "Commercial Snapshot",
-                {
                     "Price Tier": price.get("category", "N/A"),
                     "USD Range": price.get("estimated_per_meter_usd", "N/A"),
                     "Best Seasons": _comma_list(season.get("best_seasons")),
                     "Eco Score": sustainability.get("eco_score", "N/A"),
                 },
             )
+            palette_bar(palette.get("colors", []))
+            st.markdown("</div>", unsafe_allow_html=True)
 
         render_color_palette(
             palette.get("colors", []), palette.get("harmony_type", "Unknown")
@@ -1041,7 +1060,8 @@ def render_batch_page() -> None:
         mime="text/csv",
         width="stretch",
     )
-    st.dataframe(displayed_rows, width="stretch")
+    with st.container(border=True):
+        st.dataframe(displayed_rows, width="stretch")
 
     for item in displayed_rows:
         with st.expander(item["image_name"]):
@@ -1139,7 +1159,7 @@ def render_compare_page() -> None:
 
     _render_workflow_banner("comparison", analysis_mode)
 
-    left, right = st.columns(2)
+    left, right = st.columns(2, gap="large")
     with left:
         image_a, name_a = _render_compare_input("Material A", "compare_a")
     with right:
@@ -1190,15 +1210,17 @@ def render_compare_page() -> None:
     )
     render_highlight_banner(winner_text, summary["winner_reason"])
 
-    score_cols = st.columns(2)
-    score_cols[0].metric(bundle["name_a"], f"{summary['score_a']:.1f}/10")
-    score_cols[1].metric(bundle["name_b"], f"{summary['score_b']:.1f}/10")
+    score_cols = st.columns(2, gap="large")
+    with score_cols[0]:
+        metric_card(bundle["name_a"], f"{summary['score_a']:.1f}/10", "Comparison score")
+    with score_cols[1]:
+        metric_card(bundle["name_b"], f"{summary['score_b']:.1f}/10", "Comparison score")
 
-    compare_summary_cols = st.columns(2)
+    compare_summary_cols = st.columns(2, gap="large")
     with compare_summary_cols[0]:
         st.markdown(
             f"""
-            <div class="compare-summary-card">
+            <div class="compare-summary-card ivory-card">
                 <p class="compare-summary-label">Fabric Direction</p>
                 <div class="compare-summary-flow">
                     <div><span>{_safe_text(bundle["name_a"])}</span><strong>{_safe_text(summary["fabric_a"])}</strong></div>
@@ -1211,7 +1233,7 @@ def render_compare_page() -> None:
     with compare_summary_cols[1]:
         st.markdown(
             f"""
-            <div class="compare-summary-card">
+            <div class="compare-summary-card ivory-card">
                 <p class="compare-summary-label">Pattern Direction</p>
                 <div class="compare-summary-flow">
                     <div><span>{_safe_text(bundle["name_a"])}</span><strong>{_safe_text(summary["pattern_a"])}</strong></div>
@@ -1222,7 +1244,7 @@ def render_compare_page() -> None:
             unsafe_allow_html=True,
         )
 
-    left_result, right_result = st.columns(2)
+    left_result, right_result = st.columns(2, gap="large")
     with left_result:
         render_compare_card(bundle["name_a"], bundle["analysis_a"], bundle["image_a"])
     with right_result:
@@ -1289,44 +1311,47 @@ def _run_comparison(
 def _render_compare_input(
     title: str, key_prefix: str
 ) -> tuple[Image.Image | None, str | None]:
-    st.markdown(f"### {title}")
-    uploaded = st.file_uploader(
-        f"Upload image for {title}",
-        type=sorted(ImagePreprocessor.SUPPORTED_FORMATS),
-        key=f"{key_prefix}_upload",
-        accept_multiple_files=False,
-    )
-
-    sample_paths = sorted(Path("assets/sample_fabrics").glob("*.jpg"))
-    sample_labels = ["None"] + [
-        path.stem.replace("_", " ").title() for path in sample_paths
-    ]
-    selected_label = st.selectbox(
-        f"Or choose a curated sample for {title}",
-        sample_labels,
-        key=f"{key_prefix}_sample",
-    )
-
-    image = None
-    name = None
-
-    if uploaded is not None:
-        valid, message = ImagePreprocessor.validate_image(uploaded)
-        if not valid:
-            st.error(message)
-            return None, None
-        image = ImagePreprocessor.load_image(uploaded)
-        name = uploaded.name
-        st.caption(message)
-    elif selected_label != "None":
-        selected_path = sample_paths[sample_labels.index(selected_label) - 1]
-        image = Image.open(selected_path).convert("RGB")
-        name = selected_path.name
-
-    if image is not None and name is not None:
-        st.image(
-            ImagePreprocessor.resize_for_display(image), caption=name, width="stretch"
+    with st.container(border=True):
+        st.markdown(f"### {title}")
+        uploaded = st.file_uploader(
+            f"Upload image for {title}",
+            type=sorted(ImagePreprocessor.SUPPORTED_FORMATS),
+            key=f"{key_prefix}_upload",
+            accept_multiple_files=False,
         )
+
+        sample_paths = sorted(Path("assets/sample_fabrics").glob("*.jpg"))
+        sample_labels = ["None"] + [
+            path.stem.replace("_", " ").title() for path in sample_paths
+        ]
+        selected_label = st.selectbox(
+            f"Or choose a curated sample for {title}",
+            sample_labels,
+            key=f"{key_prefix}_sample",
+        )
+
+        image = None
+        name = None
+
+        if uploaded is not None:
+            valid, message = ImagePreprocessor.validate_image(uploaded)
+            if not valid:
+                st.error(message)
+                return None, None
+            image = ImagePreprocessor.load_image(uploaded)
+            name = uploaded.name
+            st.caption(message)
+        elif selected_label != "None":
+            selected_path = sample_paths[sample_labels.index(selected_label) - 1]
+            image = Image.open(selected_path).convert("RGB")
+            name = selected_path.name
+
+        if image is not None and name is not None:
+            st.image(
+                ImagePreprocessor.resize_for_display(image),
+                caption=name,
+                width="stretch",
+            )
 
     return image, name
 
@@ -1801,6 +1826,135 @@ def render_model_info_page() -> None:
                             sorted(inspected_rows, key=lambda row: row["f1_score"])[:5],
                             width="stretch",
                         )
+
+                # --- CONFUSION IMAGE INSPECTOR UI ---
+                predictions = inspected_result.get("predictions", [])
+                if predictions:
+                    misclassified = [p for p in predictions if p.get("true_label") != p.get("predicted_label")]
+
+                    st.write("---")
+                    st.markdown("## 🔍 Misclassification Image Inspector")
+                    st.markdown(
+                        "Analyze deep visual and tactile overlaps that led to model classification errors. "
+                        "Select any mismatch combination below to inspect the exact files and see diagnostic predictions."
+                    )
+
+                    if not misclassified:
+                        st.success("🎉 **Outstanding Accuracy!** Zero misclassifications found for this model checkpoint.")
+                    else:
+                        # Group by mismatch pair
+                        mismatch_groups = {}
+                        for p in misclassified:
+                            pair = (
+                                str(p.get("true_label", "Unknown")),
+                                str(p.get("predicted_label", "Unknown")),
+                            )
+                            mismatch_groups.setdefault(pair, []).append(p)
+
+                        # Sort groups by count descending
+                        sorted_pairs = sorted(mismatch_groups.keys(), key=lambda k: len(mismatch_groups[k]), reverse=True)
+
+                        # Format dropdown options
+                        option_labels = []
+                        option_to_pair = {}
+                        for true_lbl, pred_lbl in sorted_pairs:
+                            count = len(mismatch_groups[(true_lbl, pred_lbl)])
+                            label = f"🚨 {true_lbl} ➔ {pred_lbl} ({count} sample{'s' if count > 1 else ''})"
+                            option_labels.append(label)
+                            option_to_pair[label] = (true_lbl, pred_lbl)
+
+                        selected_option = st.selectbox(
+                            "Select Mismatch Pair to Investigate",
+                            options=option_labels,
+                            key=f"misclass_selector_{inspected_result_name}"
+                        )
+
+                        if selected_option:
+                            true_lbl, pred_lbl = option_to_pair[selected_option]
+                            samples = mismatch_groups[(true_lbl, pred_lbl)]
+
+                            # Generate diagnostic weaver insight
+                            insight = ""
+                            tl_lower, pl_lower = true_lbl.lower(), pred_lbl.lower()
+                            if ("cotton" in tl_lower and "linen" in pl_lower) or ("linen" in tl_lower and "cotton" in pl_lower):
+                                insight = "Both cotton and linen are plant-based cellulose fibers with highly similar spun-thread weaves. Under close zoom or uneven lighting, the subtle slubs of linen can closely mimic raw or slub-cotton yarns, leading to visual and tactile classification confusion."
+                            elif ("wool" in tl_lower and "polyester" in pl_lower) or ("polyester" in tl_lower and "wool" in pl_lower):
+                                insight = "Polyester fleece, microfiber, and synthetic pile weaves are intentionally engineered to emulate the high bulk density, insulation loft, and crimped structure of natural wool, creating strong tactile overlaps in texture descriptors."
+                            elif ("silk" in tl_lower and "polyester" in pl_lower) or ("polyester" in tl_lower and "silk" in pl_lower):
+                                insight = "Satin-weave synthetics or micro-polyesters perfectly mirror the high specular luster, micro-filament weave smoothness, and ultra-fluid drape of natural mulberry silk. These visual similarities make them highly ambiguous without microscopic weave inspection."
+                            elif ("leather" in tl_lower and "suede" in pl_lower) or ("suede" in tl_lower and "leather" in pl_lower):
+                                insight = "Suede is leather with a buffed, napped finish. In macro images, the distinctive soft fiber nap can blur depending on light reflection angle, making the transition from smooth full-grain leather to brushed suede highly challenging to delineate."
+                            elif ("denim" in tl_lower and "cotton" in pl_lower) or ("cotton" in tl_lower and "denim" in pl_lower):
+                                insight = "Denim is fundamentally a heavy-weight cotton twill weave characterized by a diagonal ribbed pattern. Since denim is cotton-based, the model must distinguish structural twill ribbing from standard cotton canvas, which share high density parameters."
+                            else:
+                                insight = "These textile structures share close tactile and visual overlaps, such as weave frequency, thread-count density, surface hairiness, or similar light reflection characteristics, causing a borderline classification decision."
+
+                            true_lbl_html = _safe_text(true_lbl)
+                            pred_lbl_html = _safe_text(pred_lbl)
+
+                            st.markdown(
+                                f"""
+                                <div class="highlight-banner" style="margin-top: 0.5rem; margin-bottom: 1.2rem;">
+                                    <strong>💡 Diagnostic Weaver Insight ({true_lbl_html} vs {pred_lbl_html})</strong>
+                                    <p>{insight}</p>
+                                </div>
+                                """,
+                                unsafe_allow_html=True
+                            )
+
+                            # Render grid of misclassified images
+                            cols = st.columns(3)
+                            for idx, sample in enumerate(samples):
+                                col = cols[idx % 3]
+                                with col:
+                                    raw_path = sample.get("filepath", "")
+                                    path = Path(raw_path)
+                                    resolved_path = None
+                                    path_candidates = [path]
+                                    if not path.is_absolute():
+                                        path_candidates.extend(
+                                            [
+                                                Path.cwd() / path,
+                                                Path(benchmark_bundle["manifest_dir"]).parent / path,
+                                            ]
+                                        )
+                                    for p_candidate in path_candidates:
+                                        if p_candidate.exists() and p_candidate.is_file():
+                                            resolved_path = p_candidate
+                                            break
+
+                                    conf_pct = _confidence_percent(sample.get("confidence"))
+                                    file_name_html = _safe_text(path.name or "Unknown file")
+
+                                    if resolved_path:
+                                        try:
+                                            img = Image.open(resolved_path).convert("RGB")
+                                            display_img = ImagePreprocessor.resize_for_display(img)
+                                            col.image(display_img, use_container_width=True)
+                                        except Exception:
+                                            col.warning("Could not render image preview.")
+                                    else:
+                                        col.warning(f"Image file not found: {path.name}")
+
+                                    # Show premium styled confidence and details
+                                    col.markdown(
+                                        f"""
+                                        <div class="metric-card ivory-card" style="min-height: auto; padding: 0.8rem; margin-bottom: 1rem;">
+                                            <span style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted-soft); display: block; margin-bottom: 0.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">File: {file_name_html}</span>
+                                            <span style="font-size: 0.85rem; font-weight: 700; color: var(--danger); display: block; margin-bottom: 0.4rem;">Predicted: {pred_lbl_html}</span>
+                                            <span style="font-size: 0.85rem; font-weight: 700; color: var(--success); display: block; margin-bottom: 0.4rem;">Actual: {true_lbl_html}</span>
+                                            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 0.6rem; border-top: 1px solid var(--line); padding-top: 0.4rem;">
+                                                <span style="font-size: 0.76rem; font-weight: 800; color: var(--muted);">Confidence:</span>
+                                                <span style="font-size: 0.85rem; font-weight: 800; color: var(--accent);">{conf_pct:.1f}%</span>
+                                            </div>
+                                            <div style="background-color: var(--line); height: 4px; border-radius: 2px; margin-top: 0.3rem; overflow: hidden;">
+                                                <div style="background-color: var(--accent); width: {conf_pct:.1f}%; height: 100%;"></div>
+                                            </div>
+                                        </div>
+                                        """,
+                                        unsafe_allow_html=True
+                                    )
+                    st.write("")
 
                 st.download_button(
                     "Download Benchmark CSV",

@@ -38,18 +38,15 @@ class ModelReviewStore:
 
     def _write(self, reviews: List[Dict[str, Any]]) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        handle = tempfile.NamedTemporaryFile(
-            mode="w",
-            encoding="utf-8",
-            delete=False,
-            dir=self.path.parent,
-            prefix=f"{self.path.stem}-",
-            suffix=".tmp",
-        )
+        import uuid
+        tmp_path = self.path.parent / f"{self.path.stem}-{uuid.uuid4().hex}.tmp"
         try:
-            with handle:
-                json.dump(reviews, handle, indent=2)
-            os.replace(handle.name, self.path)
+            with open(tmp_path, "w", encoding="utf-8") as f:
+                json.dump(reviews, f, indent=2)
+            os.replace(tmp_path, self.path)
         finally:
-            if os.path.exists(handle.name):
-                os.remove(handle.name)
+            if tmp_path.exists():
+                try:
+                    tmp_path.unlink()
+                except OSError:
+                    pass

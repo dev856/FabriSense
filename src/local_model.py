@@ -14,8 +14,12 @@ from training.models import build_model
 
 
 DEFAULT_CHECKPOINT_CANDIDATES = [
+    "artifacts/model_e_efficientnet_b0_v1/best_model.pt",
+    "artifacts/model_d_resnet34_v1/best_model.pt",
     "artifacts/model_b_resnet18_v2/best_model.pt",
     "artifacts/model_c_mobilenet_v3_small_v2/best_model.pt",
+    "artifacts/model_g_alexnet_v1/best_model.pt",
+    "artifacts/model_f_vgg16_v1/best_model.pt",
     "artifacts/model_a_scratch_v2/best_model.pt",
     "models/fabric_family_phase1/best_model.pt",
     "artifacts/model_b_resnet18_phase1/best_model.pt",

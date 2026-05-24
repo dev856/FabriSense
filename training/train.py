@@ -12,7 +12,7 @@ import numpy as np
 
 from training.datasets import build_dataloaders, compute_class_weights
 from training.metrics import classification_metrics
-from training.models import build_model
+from training.models import SUPPORTED_ARCHITECTURES, build_model
 
 
 def _require_torch() -> Any:
@@ -32,7 +32,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--architecture",
         default="scratch_cnn",
-        choices=["scratch_cnn", "resnet18", "efficientnet_b0", "mobilenet_v3_small"],
+        choices=SUPPORTED_ARCHITECTURES,
         help="Model architecture to train.",
     )
     parser.add_argument("--epochs", type=int, default=12, help="Number of epochs.")
