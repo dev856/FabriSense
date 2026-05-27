@@ -581,6 +581,17 @@ class TestAppCSS(unittest.TestCase):
 
         self.assertTrue(len(APP_CSS) > 1000)
 
+    def test_app_css_preserves_material_icon_fonts(self):
+        from ui.styles import APP_CSS
+
+        sans_rule_selector = APP_CSS.split(
+            "font-family: var(--font-sans) !important;", 1
+        )[0].rsplit("{", 1)[0]
+        self.assertNotIn(".stApp span", sans_rule_selector)
+        self.assertIn('[class*="material-icons"]', APP_CSS)
+        self.assertIn('[class*="material-symbols"]', APP_CSS)
+        self.assertIn('"Material Symbols Rounded"', APP_CSS)
+
     def test_app_css_has_bento_grid(self):
         from ui.styles import APP_CSS
 
