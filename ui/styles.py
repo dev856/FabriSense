@@ -109,7 +109,6 @@ body,
 .stApp p,
 .stApp div,
 .stApp label,
-.stApp span,
 .stApp button,
 .stApp input,
 .stApp textarea,
@@ -117,6 +116,25 @@ body,
 .stApp [data-testid="stMarkdownContainer"],
 .stApp [data-testid="stMarkdownContainer"] p {
     font-family: var(--font-sans) !important;
+}
+
+/* Keep Streamlit/Material ligature icons from rendering as literal text. */
+.stApp [class*="material-icons"],
+.stApp [class*="material-symbols"],
+.stApp [data-testid*="IconMaterial"],
+.stApp [data-testid*="IconMaterial"] span {
+    font-family: "Material Symbols Rounded", "Material Symbols Outlined", "Material Icons" !important;
+    font-weight: normal !important;
+    font-style: normal !important;
+    letter-spacing: normal !important;
+    line-height: 1 !important;
+    text-transform: none !important;
+    white-space: nowrap !important;
+    word-wrap: normal !important;
+    direction: ltr !important;
+    font-feature-settings: "liga" !important;
+    -webkit-font-feature-settings: "liga" !important;
+    -webkit-font-smoothing: antialiased !important;
 }
 
 h1,
