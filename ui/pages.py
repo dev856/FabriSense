@@ -601,11 +601,7 @@ def _score_value(value: Any, default: float = 5.0) -> float:
 
 
 def render_home_page() -> None:
-    _, hero_center, _ = st.columns([0.55, 2.9, 0.55])
-    with hero_center:
-        st.markdown('<div class="ivory-card">', unsafe_allow_html=True)
-        render_hero()
-        st.markdown("</div>", unsafe_allow_html=True)
+    render_hero()
     render_client_workflow()
     render_feature_strip()
 
@@ -692,7 +688,6 @@ def render_results_page(
 ) -> None:
     metadata = analysis.get("analysis_metadata", {})
     render_page_intro(
-        "ANALYSIS OUTPUT",
         "Material brief ready for review.",
         "The result below combines structure, palette, surface behavior, and commercial guidance into one presentation layer.",
     )
@@ -983,7 +978,6 @@ def render_results_page(
 
 def render_batch_page() -> None:
     render_page_intro(
-        "MULTI-ITEM WORKFLOW",
         "Analyze a batch of fabric images in one run.",
         "Use batch mode to review seller catalogs, classroom submissions, or sourcing references and export the summary as CSV.",
     )
@@ -1145,7 +1139,6 @@ def _run_batch_analysis(
 
 def render_compare_page() -> None:
     render_page_intro(
-        "SIDE-BY-SIDE REVIEW",
         "Compare two materials in one workspace.",
         "Use the comparison view to separate fabric family, pattern direction, palette shifts, and visual quality without jumping between tabs.",
     )
@@ -1193,7 +1186,6 @@ def render_compare_page() -> None:
 
     st.divider()
     render_page_intro(
-        "COMPARISON RESULT",
         "A clearer read on which material performs better visually.",
         "Review the recommendation, inspect each textile panel, and use the differences list to explain the selection with confidence.",
     )
@@ -1358,7 +1350,6 @@ def _render_compare_input(
 
 def render_history_page() -> None:
     render_page_intro(
-        "WORKING HISTORY",
         "Review recent material reads without re-uploading.",
         "History keeps a compact local log of prior runs so the app works more like a real review workspace.",
     )
@@ -1387,7 +1378,6 @@ def render_history_page() -> None:
 
 def render_fabric_guide_page() -> None:
     render_page_intro(
-        "REFERENCE LIBRARY",
         "A compact guide to common fabric families.",
         "Use this page as a quick working reference when you need plain-language reminders about feel, use cases, and caution points.",
     )
@@ -1407,7 +1397,6 @@ def render_fabric_guide_page() -> None:
 
 def render_care_guide_page() -> None:
     render_page_intro(
-        "CARE DEFAULTS",
         "Fast handling guidance for common material families.",
         "These are general defaults for textile handling. Final garment care still depends on dye, finish, trims, and construction.",
     )
@@ -1429,7 +1418,6 @@ def render_model_info_page() -> None:
     available_models = _available_local_models()
     reviews = MODEL_REVIEWS.load()
     render_page_intro(
-        "MODEL STACK",
         "How FabriSense presents local model evidence.",
         "Use this page to explain the locally trained classifier, local heuristic baseline, checkpoint metrics, and review workflow.",
     )
@@ -2023,7 +2011,6 @@ def render_model_info_page() -> None:
 
 def render_about_page() -> None:
     render_page_intro(
-        "CASE STUDY",
         "FabriSense is a client-facing textile intelligence workspace.",
         "The project turns fabric images into visual material briefs while keeping the machine-learning evidence available for portfolio review.",
     )

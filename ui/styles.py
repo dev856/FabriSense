@@ -1,4 +1,4 @@
-"""Custom CSS for the FabriSense Atelier Noir redesign."""
+"""Custom CSS for the FabriSense interface."""
 
 from __future__ import annotations
 
@@ -135,6 +135,10 @@ body,
     font-feature-settings: "liga" !important;
     -webkit-font-feature-settings: "liga" !important;
     -webkit-font-smoothing: antialiased !important;
+}
+
+.stApp [data-testid="stMarkdownContainer"] a.anchor-link {
+    display: none !important;
 }
 
 h1,
@@ -428,7 +432,11 @@ section[data-testid="stSidebar"] .stRadio [aria-checked="true"] div[data-testid=
 .hero-shell {
     display: grid !important;
     gap: 1.4rem !important;
+    width: 100% !important;
+    min-height: 340px !important;
+    margin: 0 0 0.9rem !important;
     padding: clamp(2rem, 4.5vw, 4rem) clamp(1.8rem, 4vw, 4.5rem) !important;
+    align-items: center !important;
 }
 
 .atelier-home-card {
@@ -498,11 +506,16 @@ section[data-testid="stSidebar"] .stRadio [aria-checked="true"] div[data-testid=
 }
 
 .info-card {
-    min-height: 116px !important;
+    display: flex !important;
+    min-height: 128px !important;
+    height: 100% !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
 }
 
 .info-card h3,
 .workflow-strip h3 {
+    margin: 0 0 0.55rem !important;
     font-size: 1.05rem !important;
     line-height: 1.25 !important;
 }
@@ -511,6 +524,7 @@ section[data-testid="stSidebar"] .stRadio [aria-checked="true"] div[data-testid=
 .workflow-step p,
 .scenario-card p,
 .stat-card p {
+    margin: 0 !important;
     color: var(--muted) !important;
     font-size: 0.82rem !important;
     line-height: 1.55 !important;
@@ -723,6 +737,7 @@ section[data-testid="stSidebar"] .stRadio [aria-checked="true"] div[data-testid=
 }
 
 .workflow-strip,
+.feature-strip,
 .scenario-card,
 .floating-action-bar {
     border: 1px solid var(--line) !important;
@@ -733,6 +748,8 @@ section[data-testid="stSidebar"] .stRadio [aria-checked="true"] div[data-testid=
 
 .workflow-strip {
     background: #121820 !important;
+    margin: 0 0 1rem !important;
+    padding: 1rem !important;
 }
 
 .workflow-strip h3 {
@@ -740,6 +757,7 @@ section[data-testid="stSidebar"] .stRadio [aria-checked="true"] div[data-testid=
 }
 
 .workflow-step-grid,
+.feature-card-grid,
 .scenario-grid,
 .bento-grid {
     display: grid !important;
@@ -747,17 +765,30 @@ section[data-testid="stSidebar"] .stRadio [aria-checked="true"] div[data-testid=
 }
 
 .workflow-step-grid,
+.feature-card-grid,
 .scenario-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
 }
 
-.workflow-step-grid {
+.workflow-step-grid,
+.feature-card-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
 }
 
+.feature-strip {
+    margin: 0 0 0.95rem !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
 .workflow-step {
+    display: flex !important;
+    height: 100% !important;
+    flex-direction: column !important;
     padding: 0.9rem !important;
-    min-height: 112px !important;
+    min-height: 124px !important;
     border: 1px solid var(--line) !important;
     border-radius: var(--radius) !important;
     background: var(--surface) !important;
@@ -1321,6 +1352,7 @@ details[data-testid="stExpander"] summary p,
 
 @media (max-width: 900px) {
     .workflow-step-grid,
+    .feature-card-grid,
     .scenario-grid,
     .bento-grid.cols-4,
     .bento-grid.cols-3,
@@ -1373,25 +1405,18 @@ details[data-testid="stExpander"] summary p,
     color: var(--accent) !important;
     -webkit-text-fill-color: var(--accent) !important;
 }
-</style>
-"""
 
-
-DARK_MODE_CSS = """
-<style>
-:root {
-    --bg: #0B0F14;
-    --bg-elev: #121820;
-    --surface: #FAF7F2;
-    --brass: #C9A86B;
-    --text-1: #E8E3D8;
-    --text-2: #B8B2A9;
+/* Expander headers sit on ivory even when the body is dark. */
+details[data-testid="stExpander"] summary,
+details[data-testid="stExpander"] summary *,
+[data-testid="stExpander"] summary,
+[data-testid="stExpander"] summary *,
+.streamlit-expanderHeader,
+.streamlit-expanderHeader * {
+    color: #1A1A1A !important;
+    -webkit-text-fill-color: #1A1A1A !important;
+    opacity: 1 !important;
 }
-section[data-testid="stSidebar"] { background: var(--bg-elev) !important; }
-.stat-card,
-.info-card { background: var(--surface) !important; }
-.stTextArea textarea { background: rgba(var(--surface-rgb), 0.06) !important; }
-.stTabs [aria-selected="true"] { color: var(--brass) !important; }
 </style>
 """
 
@@ -1435,8 +1460,8 @@ def hex_to_rgba_str(hex_str: str, alpha: float) -> str:
     return f"rgba({r}, {g}, {b}, {alpha})"
 
 
-def get_dynamic_theme_css(hex_color: str, is_dark_mode: bool = False) -> str:
-    """Expose the detected fabric color without overriding Atelier Noir tokens."""
+def get_dynamic_theme_css(hex_color: str) -> str:
+    """Expose the detected fabric color without overriding core theme tokens."""
     accent_soft = hex_to_rgba_str(hex_color, 0.18)
     return f"""
 <style>

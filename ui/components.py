@@ -27,7 +27,6 @@ def render_sidebar_brand() -> None:
     st.markdown(
         """
         <div class="sidebar-brand-card">
-            <p class="sidebar-kicker">FABRISENSE STUDIO</p>
             <h3>Material analysis, checkpoint evidence, and review workflows in one place.</h3>
             <p>Move from polished fabric briefs to trained-model benchmarking without leaving the workspace.</p>
         </div>
@@ -36,11 +35,12 @@ def render_sidebar_brand() -> None:
     )
 
 
-def render_page_intro(kicker: str, title: str, body: str) -> None:
+def render_page_intro(title: str, body: str | None = None, legacy_body: str | None = None) -> None:
+    if legacy_body is not None:
+        title, body = str(body or ""), legacy_body
     st.markdown(
         f"""
         <section class="page-intro ivory-card">
-            <p class="eyebrow">{kicker}</p>
             <h2>{title}</h2>
             <p class="page-intro-text">{body}</p>
         </section>
@@ -54,7 +54,6 @@ def render_hero() -> None:
         """
         <section class="hero-shell atelier-home-card ivory-card">
             <div class="hero-copy">
-                <p class="eyebrow">ATELIER NOIR</p>
                 <h1>Turn a fabric image into a material passport.</h1>
                 <p class="hero-text">
                     Upload a close-up textile image and generate a polished read on fabric family,
@@ -73,7 +72,6 @@ def render_hero() -> None:
 
 
 def render_feature_strip() -> None:
-    cols = st.columns(4)
     items = [
         ("Pattern Read", "Spot stripe, plaid, geometric, or textured-solid direction."),
         (
@@ -86,12 +84,18 @@ def render_feature_strip() -> None:
             "Package findings into a cleaner material brief and downloadable output.",
         ),
     ]
-    for col, (title, body) in zip(cols, items):
-        with col:
-            st.markdown(
-                f"<div class='info-card ivory-card'><h3>{title}</h3><p>{body}</p></div>",
-                unsafe_allow_html=True,
-            )
+    cards = []
+    for title, body in items:
+        cards.append(
+            "<div class='info-card ivory-card'>"
+            f"<h3>{_safe_text(title)}</h3>"
+            f"<p>{_safe_text(body)}</p>"
+            "</div>"
+        )
+    st.markdown(
+        f"<section class='feature-strip'><div class='feature-card-grid'>{''.join(cards)}</div></section>",
+        unsafe_allow_html=True,
+    )
 
 
 def render_client_workflow() -> None:
@@ -113,7 +117,6 @@ def render_client_workflow() -> None:
     st.markdown(
         "<div class='workflow-strip'>"
         "<div class='workflow-strip-head'>"
-        "<p class='eyebrow'>Client Path</p>"
         "<h3>Show the journey, then let the result explain itself.</h3>"
         "</div>"
         f"<div class='workflow-step-grid'>{''.join(cards)}</div>"
@@ -160,7 +163,6 @@ def render_sample_gallery(
     st.markdown(
         """
         <div class="input-section-head">
-            <p class="eyebrow">Sample Library</p>
             <h3>Use a curated textile reference</h3>
             <p>Start quickly with one of the built-in swatches and switch anytime.</p>
         </div>
@@ -215,7 +217,6 @@ def render_upload_panel(
     st.markdown(
         f"""
         <div class="input-section-head">
-            <p class="eyebrow">Image Upload</p>
             <h3>{_safe_text(title)}</h3>
             <p>Drop a flat-lay, close-up, or catalog crop to generate a material read.</p>
         </div>
@@ -247,7 +248,7 @@ def render_upload_panel(
 
 
 def metric_card(label: str, value: Any, sub: str = "") -> None:
-    """Render an Atelier Noir metric card."""
+    """Render a compact metric card."""
     st.markdown(
         f"""
         <div class="metric-card fs-metric-card ivory-card">
@@ -298,7 +299,6 @@ def material_passport(title: str, rows: Dict[str, Any]) -> None:
         f"""
         <section class="fs-card fs-passport ivory-card">
             <div>
-                <p class="eyebrow">Material Passport</p>
                 <h3>{_safe_text(title)}</h3>
             </div>
             <div class="fs-passport-grid">{''.join(items)}</div>
@@ -586,29 +586,16 @@ def render_confusion_matrix_heatmap(
         st.caption("Install plotly to view the interactive confusion matrix heatmap.")
         return
 
-    is_dark = st.session_state.get("dark_mode", False)
-    if is_dark:
-        colorscale = [
-            [0, "#121820"],
-            [0.25, "#2A313A"],
-            [0.5, "#6B6257"],
-            [0.75, "#C9A86B"],
-            [1, "#DDBB7E"],
-        ]
-        text_color = "#FAF7F2"
-        title_color = "#FAF7F2"
-        tick_color = "#C9A86B"
-    else:
-        colorscale = [
-            [0, "#f7f3ec"],
-            [0.25, "#e4ddd1"],
-            [0.5, "#d4a574"],
-            [0.75, "#bb6c3f"],
-            [1, "#9d5630"],
-        ]
-        text_color = "#14212b"
-        title_color = "#14212b"
-        tick_color = "#5e6b77"
+    colorscale = [
+        [0, "#121820"],
+        [0.25, "#2A313A"],
+        [0.5, "#6B6257"],
+        [0.75, "#C9A86B"],
+        [1, "#DDBB7E"],
+    ]
+    text_color = "#FAF7F2"
+    title_color = "#FAF7F2"
+    tick_color = "#C9A86B"
 
     fig = go.Figure(
         data=go.Heatmap(
@@ -649,10 +636,9 @@ def render_color_wheel(colors: Iterable[Dict[str, Any]]) -> None:
     if not color_list:
         return
 
-    is_dark = st.session_state.get("dark_mode", False)
-    title_color = "#FAF7F2" if is_dark else "#14212b"
-    legend_font_color = "#E8E3D8" if is_dark else "#243240"
-    legend_bg = "rgba(18,24,32,0.72)" if is_dark else "rgba(255,255,255,0.5)"
+    title_color = "#FAF7F2"
+    legend_font_color = "#E8E3D8"
+    legend_bg = "rgba(18,24,32,0.72)"
 
     fig = go.Figure()
     for i, color in enumerate(color_list):
@@ -710,21 +696,12 @@ def render_radar_chart(
     if not labels or not values or len(labels) != len(values):
         return
 
-    is_dark = st.session_state.get("dark_mode", False)
-    if is_dark:
-        fill_color = "rgba(201, 168, 107, 0.18)"
-        line_color = "#C9A86B"
-        marker_color = "#DDBB7E"
-        radial_tick_color = "#B8B2A9"
-        angular_tick_color = "#E8E3D8"
-        title_color = "#FAF7F2"
-    else:
-        fill_color = "rgba(187, 108, 63, 0.18)"
-        line_color = "#bb6c3f"
-        marker_color = "#bb6c3f"
-        radial_tick_color = "#5e6b77"
-        angular_tick_color = "#243240"
-        title_color = "#14212b"
+    fill_color = "rgba(201, 168, 107, 0.18)"
+    line_color = "#C9A86B"
+    marker_color = "#DDBB7E"
+    radial_tick_color = "#B8B2A9"
+    angular_tick_color = "#E8E3D8"
+    title_color = "#FAF7F2"
 
     clamped = [min(max(v, 0), max_value) for v in values]
     fig = go.Figure()
@@ -775,38 +752,21 @@ def render_gauge_chart(
     if thresholds is None:
         thresholds = (max_value * 0.4, max_value * 0.7)
 
-    is_dark = st.session_state.get("dark_mode", False)
-
     clamped = min(max(value, 0), max_value)
     pct = clamped / max_value * 100
-    if is_dark:
-        color = (
-            "#8B5E3C"
-            if pct < thresholds[0] / max_value * 100
-            else ("#B08968" if pct < thresholds[1] / max_value * 100 else "#C9A86B")
-        )
-        title_color = "#FAF7F2"
-        tick_color = "#B8B2A9"
-        threshold_line_color = "#FAF7F2"
-        step_colors = [
-            "rgba(139, 94, 60, 0.16)",
-            "rgba(201, 168, 107, 0.12)",
-            "rgba(201, 168, 107, 0.20)",
-        ]
-    else:
-        color = (
-            "#8B5E3C"
-            if pct < thresholds[0] / max_value * 100
-            else ("#B08968" if pct < thresholds[1] / max_value * 100 else "#A8834A")
-        )
-        title_color = "#14212b"
-        tick_color = "#5e6b77"
-        threshold_line_color = "#14212b"
-        step_colors = [
-            "rgba(139, 94, 60, 0.10)",
-            "rgba(176, 137, 104, 0.10)",
-            "rgba(201, 168, 107, 0.14)",
-        ]
+    color = (
+        "#8B5E3C"
+        if pct < thresholds[0] / max_value * 100
+        else ("#B08968" if pct < thresholds[1] / max_value * 100 else "#C9A86B")
+    )
+    title_color = "#FAF7F2"
+    tick_color = "#B8B2A9"
+    threshold_line_color = "#FAF7F2"
+    step_colors = [
+        "rgba(139, 94, 60, 0.16)",
+        "rgba(201, 168, 107, 0.12)",
+        "rgba(201, 168, 107, 0.20)",
+    ]
 
     fig = go.Figure(
         go.Indicator(
@@ -865,21 +825,12 @@ def render_confusion_sankey(
     if not confusion_matrix or not labels:
         return
 
-    is_dark = st.session_state.get("dark_mode", False)
-    if is_dark:
-        warm = "rgba(201, 168, 107, 0.25)"
-        misclass = "rgba(139, 94, 60, 0.35)"
-        actual_node_color = "#C9A86B"
-        predicted_node_color = "#DDBB7E"
-        title_color = "#FAF7F2"
-        font_color = "#E8E3D8"
-    else:
-        warm = "rgba(187, 108, 63, 0.25)"
-        misclass = "rgba(139, 94, 60, 0.28)"
-        actual_node_color = "#A8834A"
-        predicted_node_color = "#C9A86B"
-        title_color = "#14212b"
-        font_color = "#243240"
+    warm = "rgba(201, 168, 107, 0.25)"
+    misclass = "rgba(139, 94, 60, 0.35)"
+    actual_node_color = "#C9A86B"
+    predicted_node_color = "#DDBB7E"
+    title_color = "#FAF7F2"
+    font_color = "#E8E3D8"
 
     n = len(labels)
     source, target, value, link_colors = [], [], [], []
