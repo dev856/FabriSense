@@ -282,6 +282,46 @@ class TestClientWorkflow(unittest.TestCase):
             self.assertNotIn('\n            <div class="workflow-step">', html)
 
 
+class TestLabelCleanup(unittest.TestCase):
+    def test_home_intro_components_do_not_render_eyebrow_labels(self):
+        from ui.components import (
+            render_client_workflow,
+            render_hero,
+            render_page_intro,
+            render_sidebar_brand,
+        )
+
+        for renderer in (
+            render_sidebar_brand,
+            render_hero,
+            render_client_workflow,
+            lambda: render_page_intro("Title", "Body"),
+        ):
+            with patch("streamlit.markdown") as mock_md:
+                renderer()
+                html = mock_md.call_args[0][0]
+                self.assertNotIn("eyebrow", html)
+                self.assertNotIn("ATELIER NOIR", html)
+                self.assertNotIn("Client Path", html)
+                self.assertNotIn("FABRISENSE STUDIO", html)
+
+
+class TestFeatureStrip(unittest.TestCase):
+    def test_feature_strip_renders_as_one_grid(self):
+        from ui.components import render_feature_strip
+
+        with patch("streamlit.markdown") as mock_md, patch(
+            "streamlit.columns"
+        ) as mock_columns:
+            render_feature_strip()
+            mock_columns.assert_not_called()
+            mock_md.assert_called_once()
+            html = mock_md.call_args[0][0]
+            self.assertIn("feature-strip", html)
+            self.assertIn("feature-card-grid", html)
+            self.assertEqual(html.count("info-card ivory-card"), 4)
+
+
 class TestPaletteGradientBar(unittest.TestCase):
     def test_gradient_bar_with_colors(self):
         from ui.components import render_palette_gradient_bar
@@ -527,52 +567,16 @@ class TestAppNavigation(unittest.TestCase):
 
         self.assertEqual(len(NAV_ICONS), len(NAV_LABELS))
 
-    def test_session_defaults_include_dark_mode(self):
-        from app import SESSION_DEFAULTS
-
-        self.assertIn("dark_mode", SESSION_DEFAULTS)
-        self.assertFalse(SESSION_DEFAULTS["dark_mode"])
-
     def test_session_defaults_include_nav_page(self):
         from app import SESSION_DEFAULTS
 
         self.assertIn("nav_page", SESSION_DEFAULTS)
         self.assertEqual(SESSION_DEFAULTS["nav_page"], "analyze")
 
+    def test_session_defaults_do_not_include_dark_mode(self):
+        from app import SESSION_DEFAULTS
 
-class TestDarkModeCSS(unittest.TestCase):
-    def test_dark_mode_css_exists(self):
-        from ui.styles import DARK_MODE_CSS
-
-        self.assertTrue(len(DARK_MODE_CSS) > 100)
-
-    def test_dark_mode_css_contains_key_overrides(self):
-        from ui.styles import DARK_MODE_CSS
-
-        self.assertIn("--bg: #0B0F14", DARK_MODE_CSS)
-        self.assertIn("--bg-elev: #121820", DARK_MODE_CSS)
-        self.assertIn("--brass: #C9A86B", DARK_MODE_CSS)
-
-    def test_dark_mode_covers_sidebar(self):
-        from ui.styles import DARK_MODE_CSS
-
-        self.assertIn('section[data-testid="stSidebar"]', DARK_MODE_CSS)
-
-    def test_dark_mode_covers_cards(self):
-        from ui.styles import DARK_MODE_CSS
-
-        self.assertIn(".stat-card", DARK_MODE_CSS)
-        self.assertIn(".info-card", DARK_MODE_CSS)
-
-    def test_dark_mode_covers_inputs(self):
-        from ui.styles import DARK_MODE_CSS
-
-        self.assertIn(".stTextArea textarea", DARK_MODE_CSS)
-
-    def test_dark_mode_covers_tabs(self):
-        from ui.styles import DARK_MODE_CSS
-
-        self.assertIn(".stTabs", DARK_MODE_CSS)
+        self.assertNotIn("dark_mode", SESSION_DEFAULTS)
 
 
 class TestAppCSS(unittest.TestCase):
@@ -591,6 +595,20 @@ class TestAppCSS(unittest.TestCase):
         self.assertIn('[class*="material-icons"]', APP_CSS)
         self.assertIn('[class*="material-symbols"]', APP_CSS)
         self.assertIn('"Material Symbols Rounded"', APP_CSS)
+
+    def test_app_css_has_home_layout_grid_rules(self):
+        from ui.styles import APP_CSS
+
+        self.assertIn(".feature-strip", APP_CSS)
+        self.assertIn(".feature-card-grid", APP_CSS)
+        self.assertIn("min-height: 340px", APP_CSS)
+
+    def test_app_css_has_expander_header_contrast_guard(self):
+        from ui.styles import APP_CSS
+
+        self.assertIn('details[data-testid="stExpander"] summary *', APP_CSS)
+        self.assertIn(".streamlit-expanderHeader *", APP_CSS)
+        self.assertIn("-webkit-text-fill-color: #1A1A1A", APP_CSS)
 
     def test_app_css_has_bento_grid(self):
         from ui.styles import APP_CSS

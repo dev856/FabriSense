@@ -14,7 +14,7 @@ from ui.pages import (
     render_model_info_page,
     render_results_page,
 )
-from ui.styles import APP_CSS, DARK_MODE_CSS, get_dynamic_theme_css
+from ui.styles import APP_CSS, get_dynamic_theme_css
 
 NAV_ICONS = [
     "search",
@@ -48,7 +48,6 @@ SESSION_DEFAULTS = {
     "model_benchmark_bundle": None,
     "uploaded_benchmark_manifest": None,
     "home_selected_sample": None,
-    "dark_mode": False,
     "nav_page": "analyze",
 }
 
@@ -59,19 +58,13 @@ def _initialize_session_state() -> None:
             st.session_state[key] = default_value
 
 
-def _apply_dark_mode() -> None:
-    if st.session_state.get("dark_mode"):
-        st.markdown(DARK_MODE_CSS, unsafe_allow_html=True)
-
-
 def _apply_dynamic_theme() -> None:
     if st.session_state.get("analysis"):
         palette = st.session_state.analysis.get("color_palette", {})
         dominant = palette.get("dominant_color", {})
         if dominant and dominant.get("hex"):
             hex_color = dominant.get("hex")
-            is_dark = bool(st.session_state.get("dark_mode"))
-            dynamic_css = get_dynamic_theme_css(hex_color, is_dark_mode=is_dark)
+            dynamic_css = get_dynamic_theme_css(hex_color)
             st.markdown(dynamic_css, unsafe_allow_html=True)
 
 
@@ -94,8 +87,6 @@ def _render_sidebar_navigation() -> str:
             label_visibility="collapsed",
             index=NAV_IDS.index(st.session_state.get("nav_page", "analyze")),
         )
-        st.divider()
-        st.toggle("\u25d0 Dark Mode", key="dark_mode")
         page_id = NAV_IDS[options.index(selected)]
         if page_id != st.session_state.get("nav_page"):
             st.session_state.nav_page = page_id
@@ -130,7 +121,7 @@ def _render_selected_page(page_id: str) -> None:
 
 def main() -> None:
     st.set_page_config(
-        page_title="FabriSense | Atelier Noir",
+        page_title="FabriSense",
         page_icon=str(Path("assets/favicon.ico"))
         if Path("assets/favicon.ico").exists()
         else None,
@@ -139,7 +130,6 @@ def main() -> None:
     )
     st.markdown(APP_CSS, unsafe_allow_html=True)
     _initialize_session_state()
-    _apply_dark_mode()
     _apply_dynamic_theme()
 
     page_id = _render_sidebar_navigation()
