@@ -40,6 +40,7 @@ from src.utils import (
     summarize_analysis,
 )
 from ui.components import (
+    render_about_proof,
     render_badge,
     render_chat_narrative,
     render_color_palette,
@@ -2015,11 +2016,9 @@ def render_about_page() -> None:
         "The project turns fabric images into visual material briefs while keeping the machine-learning evidence available for portfolio review.",
     )
     render_demo_scenarios()
-    landing_asset = load_json_asset("assets/lottie_fabric.json")
-    left, right = st.columns((0.7, 1.3))
+    left, right = st.columns((0.8, 1.2), gap="large")
     with left:
-        if landing_asset:
-            st_lottie(landing_asset, height=260, key="fabric-animation")
+        render_about_proof()
     with right:
         render_key_value_block(
             "Product Story",

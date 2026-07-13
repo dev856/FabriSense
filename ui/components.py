@@ -26,10 +26,19 @@ def _safe_hex(value: Any) -> str:
 def render_sidebar_brand() -> None:
     st.markdown(
         """
-        <div class="sidebar-brand-card">
-            <h3>Material analysis, checkpoint evidence, and review workflows in one place.</h3>
-            <p>Move from polished fabric briefs to trained-model benchmarking without leaving the workspace.</p>
-        </div>
+        <aside class="sidebar-brand-card">
+            <div class="sidebar-wordmark">
+                <span class="sidebar-mark" aria-hidden="true"><span></span></span>
+                <div>
+                    <p class="sidebar-product">FabriSense</p>
+                    <p class="sidebar-product-meta">Textile intelligence</p>
+                </div>
+            </div>
+            <div class="sidebar-rule"></div>
+            <h3>Material decisions,<br>made visible.</h3>
+            <p class="sidebar-brand-copy">Analyze, compare, and document fabric evidence in one focused workspace.</p>
+            <div class="sidebar-status"><span aria-hidden="true"></span>Local workspace</div>
+        </aside>
         """,
         unsafe_allow_html=True,
     )
@@ -41,8 +50,11 @@ def render_page_intro(title: str, body: str | None = None, legacy_body: str | No
     st.markdown(
         f"""
         <section class="page-intro ivory-card">
-            <h2>{title}</h2>
-            <p class="page-intro-text">{body}</p>
+            <span class="page-intro-rule" aria-hidden="true"></span>
+            <div>
+                <h2>{_safe_text(title)}</h2>
+                <p class="page-intro-text">{_safe_text(body)}</p>
+            </div>
         </section>
         """,
         unsafe_allow_html=True,
@@ -54,6 +66,7 @@ def render_hero() -> None:
         """
         <section class="hero-shell atelier-home-card ivory-card">
             <div class="hero-copy">
+                <p class="hero-kicker"><span aria-hidden="true"></span>Image-to-insight workspace</p>
                 <h1>Turn a fabric image into a material passport.</h1>
                 <p class="hero-text">
                     Upload a close-up textile image and generate a polished read on fabric family,
@@ -63,6 +76,26 @@ def render_hero() -> None:
                     <span>Local model</span>
                     <span>Palette story</span>
                     <span>Export ready</span>
+                </div>
+                <div class="hero-proof-row" aria-label="Product capabilities">
+                    <div><strong>Local</strong><span>Privacy-first analysis</span></div>
+                    <div><strong>Visual</strong><span>Decision-ready evidence</span></div>
+                    <div><strong>Shareable</strong><span>Reports and CSV exports</span></div>
+                </div>
+            </div>
+            <div class="hero-visual" aria-hidden="true">
+                <div class="hero-weave-window">
+                    <span class="weave-thread thread-one"></span>
+                    <span class="weave-thread thread-two"></span>
+                    <span class="weave-thread thread-three"></span>
+                    <div class="weave-focus-ring"><span></span></div>
+                    <p>Surface scan</p>
+                </div>
+                <div class="material-ticket">
+                    <div class="ticket-head"><span>Material passport</span><strong>FS / 01</strong></div>
+                    <div class="ticket-row"><span>Family</span><strong>Natural weave</strong></div>
+                    <div class="ticket-row"><span>Finish</span><strong>Soft structure</strong></div>
+                    <div class="ticket-palette"><i></i><i></i><i></i><i></i></div>
                 </div>
             </div>
         </section>
@@ -85,9 +118,10 @@ def render_feature_strip() -> None:
         ),
     ]
     cards = []
-    for title, body in items:
+    for index, (title, body) in enumerate(items, start=1):
         cards.append(
             "<div class='info-card ivory-card'>"
+            f"<span class='feature-index'>0{index}</span>"
             f"<h3>{_safe_text(title)}</h3>"
             f"<p>{_safe_text(body)}</p>"
             "</div>"
@@ -118,6 +152,7 @@ def render_client_workflow() -> None:
         "<div class='workflow-strip'>"
         "<div class='workflow-strip-head'>"
         "<h3>Show the journey, then let the result explain itself.</h3>"
+        "<p>Four clear steps from source image to decision-ready material brief.</p>"
         "</div>"
         f"<div class='workflow-step-grid'>{''.join(cards)}</div>"
         "</div>",
@@ -147,6 +182,29 @@ def render_demo_scenarios() -> None:
         )
     st.markdown(
         f"<div class='scenario-grid'>{''.join(cards)}</div>",
+        unsafe_allow_html=True,
+    )
+
+
+def render_about_proof() -> None:
+    """Render a deterministic About-page visual that does not depend on an iframe."""
+    st.markdown(
+        """
+        <section class="about-proof-card">
+            <div class="about-proof-head">
+                <span>FabriSense thesis</span>
+                <strong>01</strong>
+            </div>
+            <div class="about-proof-mark" aria-hidden="true"><span></span></div>
+            <h3>Built for material decisions, not just predictions.</h3>
+            <p>Every result connects visible textile evidence to language a designer, buyer, or reviewer can act on.</p>
+            <div class="about-proof-list">
+                <div><span>01</span><strong>Local by default</strong></div>
+                <div><span>02</span><strong>Evidence in context</strong></div>
+                <div><span>03</span><strong>Ready to share</strong></div>
+            </div>
+        </section>
+        """,
         unsafe_allow_html=True,
     )
 
@@ -328,7 +386,7 @@ def render_metric_band(metrics: Dict[str, Any]) -> None:
 
 def render_highlight_banner(title: str, body: str) -> None:
     st.markdown(
-        f"<div class='highlight-banner'><strong>{title}</strong><p>{body}</p></div>",
+        f"<div class='highlight-banner'><strong>{_safe_text(title)}</strong><p>{_safe_text(body)}</p></div>",
         unsafe_allow_html=True,
     )
 

@@ -126,7 +126,7 @@ def main() -> None:
         if Path("assets/favicon.ico").exists()
         else None,
         layout="wide",
-        initial_sidebar_state="expanded",
+        initial_sidebar_state="auto",
     )
     st.markdown(APP_CSS, unsafe_allow_html=True)
     _initialize_session_state()
