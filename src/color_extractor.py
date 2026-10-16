@@ -42,7 +42,7 @@ class ColorExtractor:
         (240, 230, 140): "Khaki",
         (230, 230, 250): "Lavender",
         (244, 164, 96): "Sandy Brown",
-        (47, 79, 79): "Dark Slate",
+        (47, 79, 79): "Slate",
         (210, 105, 30): "Chocolate",
         (178, 34, 34): "Firebrick",
     }
