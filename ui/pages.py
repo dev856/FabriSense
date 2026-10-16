@@ -718,9 +718,10 @@ def render_results_page(
     st.markdown('<div id="results-anchor"></div>', unsafe_allow_html=True)
     if st.session_state.pop("scroll_to_results", False):
         # Results render below the input form; without this a finished run looks like nothing happened.
+        # Streamlit resets scroll while it finishes the rerun, so retry a few times over ~2s.
         components.html(
-            "<script>setTimeout(() => window.parent.document.getElementById('results-anchor')"
-            "?.scrollIntoView({behavior: 'smooth'}), 300);</script>",
+            "<script>[300, 900, 1800].forEach(ms => setTimeout(() => window.parent.document"
+            ".getElementById('results-anchor')?.scrollIntoView(), ms));</script>",
             height=0,
         )
     render_page_intro(
