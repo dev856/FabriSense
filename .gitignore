@@ -13,6 +13,7 @@ artifacts/*/*
 !artifacts/*/best_model.pt
 !artifacts/*/config.json
 !artifacts/*/metrics.json
+!artifacts/*/calibration.json
 data/fabrics/
 models/
 

@@ -1,5 +1,7 @@
 # FabriSense
 
+[![tests](https://github.com/dev856/FabriSense/actions/workflows/tests.yml/badge.svg)](https://github.com/dev856/FabriSense/actions/workflows/tests.yml)
+
 FabriSense is a Streamlit application for fabric image analysis. It converts an uploaded textile image into a structured material brief using local image processing and local trained checkpoints.
 
 The app is designed for practical analysis workflows: single-image review, side-by-side comparison, batch processing, history tracking, and exportable reports.
@@ -39,6 +41,8 @@ The app is designed for practical analysis workflows: single-image review, side-
 - Review history and benchmark outputs are persisted locally for repeatable analysis.
 - Training supports `scratch_cnn`, `resnet18`, `resnet34`, `efficientnet_b0`, `mobilenet_v3_small`, `vgg16`, and `alexnet`.
 - Latest phase-1 trained checkpoints include EfficientNet-B0 (macro F1 0.971), ResNet-34 (macro F1 0.955), AlexNet (macro F1 0.866), and VGG-16 (macro F1 0.860).
+- **Explainability:** the Analyze page shows a Grad-CAM heatmap of the image regions that drove the trained model's prediction.
+- **Calibration:** `python -m training.calibrate --checkpoint artifacts/<run>/best_model.pt --manifest-dir <manifests>` fits temperature scaling on the val split, reports test ECE before/after, and writes `calibration.json`; the app then shows calibrated confidences automatically.
 - Large checkpoint binaries use Git LFS because some transfer-learning models exceed normal GitHub file limits.
 
 ## Analysis Modes

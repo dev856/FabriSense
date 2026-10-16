@@ -228,6 +228,11 @@ def _available_local_models() -> list[Dict[str, Any]]:
     return list_available_local_models()
 
 
+@st.cache_resource(show_spinner=False)
+def _cached_local_model(checkpoint_path: str) -> LocalFabricModel:
+    return LocalFabricModel(checkpoint_path)
+
+
 def _create_analyzer(checkpoint_path: str | None = None) -> FabricAnalyzer:
     local_model_client = LocalFabricModel(checkpoint_path) if checkpoint_path else None
     return FabricAnalyzer(local_model_client=local_model_client)
@@ -858,9 +863,23 @@ def render_results_page(
                 render_list_block(
                     "Prediction Warnings", _model_warning_rows(model_prediction)
                 )
+                temperature = float(model_prediction.get("temperature", 1.0) or 1.0)
                 st.caption(
-                    "Trained-model confidence is a softmax score. It can still be overconfident on images unlike the training set."
+                    f"Confidence is temperature-scaled (T={temperature:.2f}, fit on the validation split)."
+                    if temperature != 1.0
+                    else "Trained-model confidence is a raw softmax score. It can still be overconfident on images unlike the training set. Run training/calibrate.py to calibrate it."
                 )
+                checkpoint_path = model_prediction.get("checkpoint_path")
+                if checkpoint_path and image is not None:
+                    with st.expander(":material/visibility: Where the model looked (Grad-CAM)"):
+                        try:
+                            st.image(
+                                _cached_local_model(checkpoint_path).explain(image),
+                                caption=f"Red regions drove the '{model_prediction.get('label', 'N/A')}' prediction.",
+                                width="stretch",
+                            )
+                        except Exception as exc:
+                            st.info(f"Grad-CAM unavailable for this checkpoint. Details: {exc}")
             render_list_block(
                 "Styling Suggestions",
                 [

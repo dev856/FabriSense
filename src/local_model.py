@@ -8,6 +8,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict
 
+import numpy as np
 from PIL import Image
 
 from training.models import build_model
@@ -83,6 +84,7 @@ class LocalFabricModel:
             "labels": labels,
             "pretrained": bool(checkpoint.get("pretrained", metadata.get("pretrained", False))),
             "metrics": metrics,
+            "temperature": self._temperature(),
         }
 
     def predict(self, image: Image.Image) -> Dict[str, Any]:
@@ -101,7 +103,7 @@ class LocalFabricModel:
         tensor = transform(image.convert("RGB")).unsqueeze(0).to(device)
         model.eval()
         with torch.no_grad():
-            logits = model(tensor)
+            logits = model(tensor) / runtime["temperature"]
             probabilities = torch.softmax(logits, dim=1)[0]
             top_values, top_indices = torch.topk(probabilities, k=min(3, len(labels)))
 
@@ -120,7 +122,40 @@ class LocalFabricModel:
             "checkpoint_path": str(self.checkpoint_path.resolve()),
             "architecture": runtime["architecture"],
             "model_name": self.model_name,
+            "temperature": runtime["temperature"],
         }
+
+    def explain(self, image: Image.Image) -> Image.Image:
+        """Grad-CAM overlay showing which regions drove the top prediction."""
+        import cv2
+
+        runtime = self._load_runtime()
+        torch = runtime["torch"]
+        model = runtime["model"]
+        # Last conv layer works for every supported architecture (ResNet, EfficientNet, VGG, scratch CNN...).
+        target = [module for module in model.modules() if isinstance(module, torch.nn.Conv2d)][-1]
+        captured: dict[str, Any] = {}
+        handle = target.register_forward_hook(lambda _module, _inputs, output: captured.update(activation=output))
+        try:
+            tensor = runtime["transform"](image.convert("RGB")).unsqueeze(0).to(runtime["device"])
+            model.eval()
+            with torch.enable_grad():
+                logits = model(tensor)
+                activation = captured["activation"]
+                (gradient,) = torch.autograd.grad(logits[0, logits[0].argmax()], activation)
+        finally:
+            handle.remove()
+
+        weights = gradient.mean(dim=(2, 3), keepdim=True)
+        cam = torch.relu((weights * activation).sum(dim=1))[0].detach().cpu().numpy()
+        cam = cam / cam.max() if cam.max() > 0 else cam
+        rgb = image.convert("RGB")
+        heat = cv2.applyColorMap(np.uint8(255 * cv2.resize(cam, rgb.size)), cv2.COLORMAP_JET)
+        return Image.blend(rgb, Image.fromarray(cv2.cvtColor(heat, cv2.COLOR_BGR2RGB)), 0.45)
+
+    def _temperature(self) -> float:
+        """Temperature from training/calibrate.py; 1.0 (raw softmax) when the checkpoint is uncalibrated."""
+        return float(_read_json_if_exists(self.checkpoint_path.parent / "calibration.json").get("temperature", 1.0))
 
     def _load_runtime(self) -> dict[str, Any]:
         if self._runtime is not None:
@@ -151,6 +186,7 @@ class LocalFabricModel:
             "labels": labels,
             "device": device,
             "architecture": architecture,
+            "temperature": self._temperature(),
         }
         return self._runtime
 
