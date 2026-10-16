@@ -134,6 +134,7 @@ class LocalFabricModel:
         model = runtime["model"]
         # Last conv layer works for every supported architecture (ResNet, EfficientNet, VGG, scratch CNN...).
         target = [module for module in model.modules() if isinstance(module, torch.nn.Conv2d)][-1]
+        # ponytail: hook on a model shared across sessions; a concurrent request can race it (caught in the UI), add a lock if traffic grows.
         captured: dict[str, Any] = {}
         handle = target.register_forward_hook(lambda _module, _inputs, output: captured.update(activation=output))
         try:
@@ -196,11 +197,11 @@ class LocalFabricModel:
 
     def _resolve_checkpoint_path(self, checkpoint_path: str | Path | None) -> Path | None:
         candidates: list[Path] = []
+        if checkpoint_path is not None:
+            candidates.append(Path(checkpoint_path))
         env_path = os.getenv("FABRISENSE_LOCAL_MODEL_PATH")
         if env_path:
             candidates.append(Path(env_path))
-        if checkpoint_path is not None:
-            candidates.append(Path(checkpoint_path))
         candidates.extend(Path(candidate) for candidate in DEFAULT_CHECKPOINT_CANDIDATES)
 
         for candidate in candidates:

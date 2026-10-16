@@ -7,7 +7,7 @@ import io
 from typing import BinaryIO, Optional, Tuple
 
 import numpy as np
-from PIL import Image, ImageEnhance
+from PIL import Image, ImageEnhance, ImageOps
 
 
 class ImagePreprocessor:
@@ -50,7 +50,7 @@ class ImagePreprocessor:
 
     @staticmethod
     def load_image(uploaded_file: BinaryIO) -> Image.Image:
-        image = Image.open(uploaded_file)
+        image = ImageOps.exif_transpose(Image.open(uploaded_file))
         if image.mode != "RGB":
             image = image.convert("RGB")
         if hasattr(uploaded_file, "seek"):

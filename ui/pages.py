@@ -228,13 +228,14 @@ def _available_local_models() -> list[Dict[str, Any]]:
     return list_available_local_models()
 
 
-@st.cache_resource(show_spinner=False)
+# Streamlit Cloud gives ~1 GB RAM; VGG-16 alone is ~0.5 GB, so keep at most two models loaded.
+@st.cache_resource(show_spinner=False, max_entries=2)
 def _cached_local_model(checkpoint_path: str) -> LocalFabricModel:
     return LocalFabricModel(checkpoint_path)
 
 
 def _create_analyzer(checkpoint_path: str | None = None) -> FabricAnalyzer:
-    local_model_client = LocalFabricModel(checkpoint_path) if checkpoint_path else None
+    local_model_client = _cached_local_model(checkpoint_path) if checkpoint_path else None
     return FabricAnalyzer(local_model_client=local_model_client)
 
 
