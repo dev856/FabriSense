@@ -114,6 +114,22 @@ pip install -r requirements-ml.txt
 streamlit run app.py
 ```
 
+## Streamlit Community Cloud
+
+Deploy `app.py` from the repository root so Cloud reads `requirements.txt` and
+`.streamlit/config.toml`. Streamlit is pinned to **1.55.0**, the version used for
+local visual verification. Keep this pin when deploying: newer Streamlit releases
+can change widget markup and break custom navigation and tab styles.
+
+After pushing a dependency change, wait for Cloud to finish installing it. If the
+previous layout persists, use **Manage app → Reboot app**, then hard-refresh the
+browser. Check the installed Streamlit version in the build logs. Locally, use
+`python -m pip install -r requirements.txt` and `python -m streamlit run app.py`
+from the activated project environment to use the same version.
+
+Before changing the pin, verify the sidebar icons, selected navigation state,
+results tab spacing and contrast, and narrow-screen layout with the new version.
+
 ## Testing
 
 ```powershell

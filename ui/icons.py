@@ -55,13 +55,13 @@ def icon_badge(name: str, tone: str = "gold") -> str:
 
 
 def navigation_icon_css(names: list[str]) -> str:
-    """Keep masks in exactly the same order as the native navigation options."""
+    """Match option values, independent of Streamlit's label wrappers."""
     rules = []
-    for index, name in enumerate(names, 1):
+    for index, name in enumerate(names):
         uri = "data:image/svg+xml," + quote(icon_svg(name), safe="")
         rules.append(
             'section[data-testid="stSidebar"] .stRadio '
-            f'[role="radiogroup"] label:nth-child({index})::before '
+            f'[role="radiogroup"] label:has(input[type="radio"][value="{index}"])::before '
             f'{{ -webkit-mask-image: url("{uri}"); mask-image: url("{uri}"); }}'
         )
     return "<style>" + "".join(rules) + "</style>"

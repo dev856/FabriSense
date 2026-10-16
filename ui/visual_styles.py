@@ -19,7 +19,7 @@ VISUAL_CSS = """
 .stApp .icon-badge.tone-rose svg { color: #8b5c4c !important; }
 
 /* Inline Markdown icons and SVG headings have different Streamlit wrappers. */
-.stTabs [data-baseweb="tab-list"] {
+.stTabs [role="tablist"] {
     gap: .5rem !important;
     padding: .4rem 1rem !important;
     max-width: 100%;
@@ -27,7 +27,7 @@ VISUAL_CSS = """
     scrollbar-width: thin;
     scrollbar-color: #8d7752 transparent;
 }
-.stTabs [data-baseweb="tab"] {
+.stTabs [role="tab"] {
     flex: 0 0 auto;
     height: auto !important;
     min-height: 46px !important;
@@ -36,7 +36,7 @@ VISUAL_CSS = """
     color: #d2c9bc !important;
     -webkit-text-fill-color: #d2c9bc !important;
 }
-.stTabs [data-baseweb="tab"] [data-testid="stMarkdownContainer"] p {
+.stTabs [role="tab"] [data-testid="stMarkdownContainer"] p {
     display: flex;
     align-items: center;
     column-gap: .625rem;
@@ -44,13 +44,14 @@ VISUAL_CSS = """
     line-height: 1.5 !important;
     font-size: .85rem !important;
 }
-.stTabs [data-baseweb="tab"] [data-testid="stMarkdownContainer"],
-.stTabs [data-baseweb="tab"] p,
-.stTabs [data-baseweb="tab"] p > span {
+.stTabs [role="tab"] [data-testid="stMarkdownContainer"],
+.stTabs [role="tab"] p,
+.stTabs [role="tab"] p > span {
     color: inherit !important;
     -webkit-text-fill-color: inherit !important;
 }
-.stTabs [data-baseweb="tab"] span[role="img"] {
+.stTabs [role="tab"] span[role="img"],
+.stTabs [role="tab"] [data-testid="stIconMaterial"] {
     display: inline-flex !important;
     flex: 0 0 20px;
     align-items: center;
@@ -60,17 +61,17 @@ VISUAL_CSS = """
     font-size: 20px !important;
     line-height: 1 !important;
 }
-.stTabs [data-baseweb="tab"][aria-selected="true"] {
+.stTabs [role="tab"][aria-selected="true"] {
     color: #242017 !important;
     -webkit-text-fill-color: #242017 !important;
     background: #f7f3ec !important;
 }
-.stTabs [data-baseweb="tab"]:hover:not([aria-selected="true"]) {
+.stTabs [role="tab"]:hover:not([aria-selected="true"]) {
     color: #f7f3ec !important;
     -webkit-text-fill-color: #f7f3ec !important;
     background: rgba(201, 168, 107, .12) !important;
 }
-.stTabs [data-baseweb="tab"]:focus-visible {
+.stTabs [role="tab"]:focus-visible {
     outline: 2px solid #e1c58f !important;
     outline-offset: -3px;
 }
@@ -150,12 +151,20 @@ section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] { padding-
 }
 section[data-testid="stSidebar"] .stRadio [role="radiogroup"] { gap: .42rem !important; }
 section[data-testid="stSidebar"] .stRadio [role="radiogroup"] label {
+    display: flex !important; align-items: center; box-sizing: border-box;
     min-height: 49px !important; padding: .7rem .85rem !important;
 }
-section[data-testid="stSidebar"] .stRadio [role="radiogroup"] label > div:first-child {
+/* BaseWeb puts the radio indicator first; React Aria wraps indicator + text. */
+section[data-testid="stSidebar"] .stRadio [role="radiogroup"] label > div:first-child:not(:has([data-testid="stMarkdownContainer"])) {
     display: block !important; position: absolute !important;
     width: 1px !important; height: 1px !important; overflow: hidden;
     clip-path: inset(50%); white-space: nowrap;
+}
+section[data-testid="stSidebar"] .stRadio [role="radiogroup"] label > div:has([data-testid="stMarkdownContainer"]) {
+    display: flex !important; align-items: center; min-width: 0;
+}
+section[data-testid="stSidebar"] .stRadio [role="radiogroup"] label > div > div:not([data-testid="stMarkdownContainer"]):not(:has(input)) {
+    display: none !important;
 }
 section[data-testid="stSidebar"] .stRadio [role="radiogroup"] label::before {
     content: "" !important; display: inline-block; flex: 0 0 22px;
@@ -281,7 +290,7 @@ section[data-testid="stSidebar"] .stRadio label:has(input:focus-visible) {
 @media (max-width: 760px) {
     .metric-band { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
     .metric-band .fs-metric-card { min-height: 125px !important; }
-    .stTabs [data-baseweb="tab"] { padding: .6rem .85rem !important; }
+    .stTabs [role="tab"] { padding: .6rem .85rem !important; }
     .confidence-bar-container { grid-template-columns: minmax(0, 1fr) 3.5rem !important; }
     .confidence-name { grid-column: 1 / -1; }
     .hero-shell.atelier-home-card { grid-template-columns: 1fr !important; padding: 1.5rem !important; }
