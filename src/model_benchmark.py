@@ -16,6 +16,12 @@ from training.metrics import classification_metrics
 from training.models import build_model
 
 
+# A few-MB zip can expand to many GB; check declared sizes before extracting anything.
+MAX_UPLOAD_UNCOMPRESSED_BYTES = 500 * 1024 * 1024
+MAX_UPLOAD_FILES = 5000
+UPLOADED_BENCHMARKS_DIRNAME = "benchmark_uploads"
+
+
 def _require_torch() -> Any:
     try:
         import torch
@@ -34,6 +40,9 @@ def list_manifest_directories(root: str | Path = "data") -> list[dict[str, Any]]
     manifests = []
     for labels_path in sorted(root_path.glob("**/labels.json")):
         manifest_dir = labels_path.parent
+        # Uploaded sets belong to the visitor who uploaded them (kept in their session), not the shared list.
+        if UPLOADED_BENCHMARKS_DIRNAME in manifest_dir.parts:
+            continue
         split_paths = {split: manifest_dir / f"{split}.csv" for split in ("train", "val", "test")}
         if not all(path.exists() for path in split_paths.values()):
             continue
@@ -57,7 +66,7 @@ def list_manifest_directories(root: str | Path = "data") -> list[dict[str, Any]]
 
 def create_uploaded_benchmark_manifest(
     zip_path: str | Path,
-    output_root: str | Path = "data/benchmark_uploads",
+    output_root: str | Path = f"data/{UPLOADED_BENCHMARKS_DIRNAME}",
 ) -> dict[str, Any]:
     zip_file = Path(zip_path)
     if not zip_file.exists():
@@ -72,6 +81,11 @@ def create_uploaded_benchmark_manifest(
 
     try:
         with zipfile.ZipFile(zip_file, "r") as archive:
+            entries = archive.infolist()
+            if len(entries) > MAX_UPLOAD_FILES:
+                raise ValueError(f"ZIP has {len(entries)} files; the limit is {MAX_UPLOAD_FILES}.")
+            if sum(entry.file_size for entry in entries) > MAX_UPLOAD_UNCOMPRESSED_BYTES:
+                raise ValueError(f"ZIP expands beyond {MAX_UPLOAD_UNCOMPRESSED_BYTES // (1024 * 1024)} MB.")
             archive.extractall(extracted_dir)
 
         dataset_root = _resolve_dataset_root(extracted_dir)

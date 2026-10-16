@@ -22,6 +22,16 @@ class ImagePreprocessorTests(unittest.TestCase):
         self.assertTrue(valid)
         self.assertEqual(message, "Image is valid.")
 
+    def test_validate_image_rejects_too_many_pixels_before_decoding(self):
+        original = ImagePreprocessor.MAX_PIXELS
+        ImagePreprocessor.MAX_PIXELS = 100
+        try:
+            valid, message = ImagePreprocessor.validate_image(self._make_upload(size=(40, 20)))
+        finally:
+            ImagePreprocessor.MAX_PIXELS = original
+        self.assertFalse(valid)
+        self.assertIn("too large", message)
+
     def test_resize_for_analysis_adds_padding_to_target(self):
         upload = self._make_upload(size=(120, 60))
         image = ImagePreprocessor.load_image(upload)

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from datetime import datetime
 from html import escape as html_escape
 from pathlib import Path
@@ -884,7 +885,7 @@ def render_results_page(
                             f"Alt: {item.get('label', 'N/A')} ({round(float(item.get('confidence', 0)) * 100, 1)}%)"
                             for item in model_prediction.get("top_predictions", [])[1:]
                         ],
-                        f"Checkpoint: {'/'.join(Path(model_prediction.get('checkpoint_path') or 'N/A').parts[-2:])}",
+                        f"Checkpoint: {model_prediction.get('checkpoint_path', 'N/A')}",
                     ],
                 )
                 render_list_block(
@@ -1008,25 +1009,25 @@ def render_results_page(
                     "Reviewed Label",
                     review_labels or [predicted_label or "Unknown"],
                     index=default_index,
-                    key=f"model-review-label-{image_name}",
+                    key=f"model-review-label-{image_name}-{model_prediction.get('model_name', '')}-{predicted_label}",
                 )
                 review_notes = st.text_area(
                     "Reviewer Notes",
                     placeholder="Add why you agree, disagree, or want to revisit this prediction.",
-                    key=f"model-review-notes-{image_name}",
+                    key=f"model-review-notes-{image_name}-{model_prediction.get('model_name', '')}-{predicted_label}",
                 )
                 if st.button(
                     "Save Model Review",
                     type="primary",
                     width="stretch",
-                    key=f"save-review-{image_name}",
+                    key=f"save-review-{image_name}-{model_prediction.get('model_name', '')}-{predicted_label}",
                 ):
                     MODEL_REVIEWS.append(
                         _review_entry_from_analysis(
                             analysis, image_name, corrected_label, review_notes
                         )
                     )
-                    st.success("Model review saved to the local review log.")
+                    st.success("Model review saved for this session.")
                     st.toast("Review saved!")
 
 
@@ -1077,7 +1078,7 @@ def render_batch_page() -> None:
 
     rows = bundle["rows"]
     st.caption(
-        f"Batch size: {len(rows)} | Mode: {bundle['analysis_mode']} | Engine: {bundle['engine']}"
+        f"Batch size: {len(rows)} | Engine: {bundle['engine']}"
     )
     displayed_rows = rows
     if any(row.get("model_name") for row in rows):
@@ -1251,7 +1252,7 @@ def render_compare_page() -> None:
         icon="compare", label="Comparison results",
     )
     st.caption(
-        f"Mode: {bundle.get('analysis_mode', 'unknown')} | Engine: {_engine_label(bundle)}"
+        f"Engine: {_engine_label(bundle)}"
     )
 
     summary = bundle["summary"]
@@ -1412,7 +1413,7 @@ def _render_compare_input(
 def render_history_page() -> None:
     render_page_intro(
         "Your material discoveries, saved.",
-        "History keeps a compact local log of prior runs so the app works more like a real review workspace.",
+        "History keeps a compact log of your runs in this browser session, so the app works more like a real review workspace.",
         icon="history", label="Analysis history",
     )
     history = HISTORY.load()
@@ -1510,7 +1511,7 @@ def render_model_info_page() -> None:
             {
                 "What It Uses": "A trained classifier predicts fabric family from the uploaded image.",
                 "Strength": "The prediction layer belongs to the project and is measurable with accuracy and macro F1.",
-                "Limitation": "Only the fabric-family field comes from the trained model today; the rest of the brief still uses local rules.",
+                "Limitation": "The trained model predicts fabric family (and weight/drape follow from it); pattern, palette, and quality still use local rules.",
             },
         )
     with right:
@@ -1710,8 +1711,10 @@ def render_model_info_page() -> None:
                 try:
                     uploaded_bundle = create_uploaded_benchmark_manifest(zip_path)
                 except Exception as exc:
+                    uploaded_bundle = None
                     st.error(f"Uploaded benchmark preparation failed. Details: {exc}")
-                else:
+                zip_path.unlink(missing_ok=True)
+                if uploaded_bundle:
                     st.session_state.uploaded_benchmark_manifest = {
                         **uploaded_bundle,
                         "display_name": (
@@ -1726,6 +1729,9 @@ def render_model_info_page() -> None:
                 width="stretch",
                 key="clear-uploaded-benchmark",
             ):
+                previous = st.session_state.get("uploaded_benchmark_manifest") or {}
+                if previous.get("manifest_dir"):
+                    shutil.rmtree(Path(previous["manifest_dir"]).parent, ignore_errors=True)
                 st.session_state.uploaded_benchmark_manifest = None
                 st.rerun()
 

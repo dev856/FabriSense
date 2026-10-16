@@ -57,6 +57,34 @@ class ModelBenchmarkTests(unittest.TestCase):
         self.assertEqual(bundle["label_count"], 2)
         self.assertEqual(bundle["image_count"], 2)
 
+    def test_uploaded_zip_rejected_when_it_expands_too_far(self):
+        import src.model_benchmark as benchmark
+
+        zip_path = self.make_zip_path()
+        with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr("Cotton/a.jpg", b"0" * 2048)
+        original = benchmark.MAX_UPLOAD_UNCOMPRESSED_BYTES
+        benchmark.MAX_UPLOAD_UNCOMPRESSED_BYTES = 1024
+        try:
+            with self.assertRaises(ValueError):
+                create_uploaded_benchmark_manifest(zip_path, output_root=zip_path.parent / "prepared")
+        finally:
+            benchmark.MAX_UPLOAD_UNCOMPRESSED_BYTES = original
+        self.assertFalse((zip_path.parent / "prepared").exists() and any((zip_path.parent / "prepared").iterdir()))
+
+    def test_uploaded_sets_are_not_listed_for_everyone(self):
+        manifest_dir = self.make_manifest_dir()
+        uploaded = manifest_dir.parent / "benchmark_uploads" / "x" / "manifests"
+        uploaded.mkdir(parents=True)
+        for directory in (manifest_dir, uploaded):
+            for split in ("train", "val", "test"):
+                (directory / f"{split}.csv").write_text("path,label\n", encoding="utf-8")
+            (directory / "labels.json").write_text("{}", encoding="utf-8")
+
+        listed = {item["manifest_dir"] for item in list_manifest_directories(manifest_dir.parent)}
+        self.assertIn(str(manifest_dir.resolve()), listed)
+        self.assertNotIn(str(uploaded.resolve()), listed)
+
 
 if __name__ == "__main__":
     unittest.main()

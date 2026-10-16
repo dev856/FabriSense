@@ -491,6 +491,10 @@ def _get_texture_percentage(texture_val: Any, hand_feel_val: Any, hand_feel_scor
         except ValueError:
             pass
 
+    local_density = {"smooth": 25, "woven": 50, "textured": 70, "rough": 90}
+    if str(texture_val or "").strip().lower() in local_density:
+        return local_density[str(texture_val).strip().lower()]
+
     text = str(hand_feel_val or texture_val or "").strip().lower()
     if not text:
         return 50
@@ -503,10 +507,10 @@ def _get_texture_percentage(texture_val: Any, hand_feel_val: Any, hand_feel_scor
         return 60
     elif "fair" in text or "average" in text:
         return 45
-    elif "low" in text or "thin" in text or "soft" in text:
-        return 30
     elif "very low" in text or "fine" in text:
         return 15
+    elif "low" in text or "thin" in text or "soft" in text:
+        return 30
     return 50
 
 

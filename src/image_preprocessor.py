@@ -15,6 +15,8 @@ class ImagePreprocessor:
 
     SUPPORTED_FORMATS = {"png", "jpg", "jpeg", "webp", "bmp", "tiff"}
     MAX_FILE_SIZE_MB = 10
+    # A 10 MB PNG can decode to hundreds of MB; cap pixels so one upload can't exhaust the server's memory.
+    MAX_PIXELS = 40_000_000
     TARGET_SIZE = (512, 512)
     DISPLAY_MAX_SIZE = (900, 900)
 
@@ -41,6 +43,13 @@ class ImagePreprocessor:
 
         try:
             image = Image.open(uploaded_file)
+            if image.width * image.height > ImagePreprocessor.MAX_PIXELS:
+                if hasattr(uploaded_file, "seek"):
+                    uploaded_file.seek(0)
+                return False, (
+                    f"Image is too large ({image.width}x{image.height}). "
+                    f"Please upload an image under {ImagePreprocessor.MAX_PIXELS // 1_000_000} megapixels."
+                )
             image.verify()
             if hasattr(uploaded_file, "seek"):
                 uploaded_file.seek(0)

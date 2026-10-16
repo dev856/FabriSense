@@ -65,7 +65,7 @@ class LocalFabricModel:
         except Exception as exc:
             return {
                 "available": False,
-                "checkpoint_path": str(self.checkpoint_path.resolve()),
+                "checkpoint_path": _project_path(self.checkpoint_path),
                 "model_name": self.model_name,
                 "architecture": "Unavailable",
                 "class_count": 0,
@@ -77,7 +77,7 @@ class LocalFabricModel:
         metrics = _read_json_if_exists(self.checkpoint_path.parent / "metrics.json")
         return {
             "available": True,
-            "checkpoint_path": str(self.checkpoint_path.resolve()),
+            "checkpoint_path": _project_path(self.checkpoint_path),
             "model_name": self.model_name,
             "architecture": checkpoint.get("architecture", metadata.get("architecture", "unknown")),
             "class_count": len(labels),
@@ -119,7 +119,7 @@ class LocalFabricModel:
             "label": primary["label"],
             "confidence": primary["confidence"],
             "top_predictions": top_predictions,
-            "checkpoint_path": str(self.checkpoint_path.resolve()),
+            "checkpoint_path": _project_path(self.checkpoint_path),
             "architecture": runtime["architecture"],
             "model_name": self.model_name,
             "temperature": runtime["temperature"],
@@ -253,7 +253,7 @@ def list_available_local_models() -> list[Dict[str, Any]]:
         entries.append(
             {
                 "display_name": display_name,
-                "checkpoint_path": str(checkpoint_path.resolve()),
+                "checkpoint_path": _project_path(checkpoint_path),
                 "model_name": checkpoint_path.parent.name,
                 "architecture": architecture,
                 "pretrained": pretrained,
@@ -265,6 +265,15 @@ def list_available_local_models() -> list[Dict[str, Any]]:
 
     entries.sort(key=lambda item: item.get("metrics", {}).get("macro_f1", -1), reverse=True)
     return entries
+
+
+def _project_path(path: Path) -> str:
+    """Project-relative path when possible, so the UI and reports never expose the server's directory layout."""
+    resolved = path.resolve()
+    try:
+        return str(resolved.relative_to(Path.cwd().resolve()))
+    except ValueError:
+        return str(resolved)
 
 
 def _read_json_if_exists(path: Path) -> Dict[str, Any]:

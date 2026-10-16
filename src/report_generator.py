@@ -53,7 +53,7 @@ class ReportGenerator:
         pdf.cell(
             0,
             6,
-            self._sanitize_text(f"Mode: {metadata.get('analysis_mode', 'unknown')} | Engine: {engine}"),
+            self._sanitize_text(f"Engine: {engine}"),
             new_x="LMARGIN",
             new_y="NEXT",
             align="C",
