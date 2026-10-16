@@ -94,7 +94,7 @@ class ColorExtractor:
             )
 
         palette.sort(key=lambda item: item["percentage"], reverse=True)
-        return palette
+        return _label_repeated_names(palette)
 
     def _extract_palette_without_sklearn(self, pixels: np.ndarray, unique_pixels: np.ndarray) -> List[Dict]:
         if len(unique_pixels) <= self.n_colors:
@@ -115,7 +115,7 @@ class ColorExtractor:
                     "name": self._closest_color_name((r, g, b)),
                 }
             )
-        return palette
+        return _label_repeated_names(palette)
 
     def _closest_color_name(self, rgb: Tuple[int, int, int]) -> str:
         min_distance = float("inf")
@@ -152,3 +152,21 @@ class ColorExtractor:
         if 150 < hue_range < 230:
             return "Complementary"
         return "Mixed"
+
+
+def _label_repeated_names(palette: List[Dict]) -> List[Dict]:
+    """Give repeated names a tone relative to the most dominant swatch of that name; the first keeps its plain name."""
+    first: Dict[str, Tuple[int, int, int]] = {}
+    used: set[str] = set()
+    for color in palette:
+        name = color["name"]
+        if name not in first:
+            first[name] = color["rgb"]
+            used.add(name)
+            continue
+        lighter = sum(color["rgb"]) > sum(first[name])
+        words = ("Light", "Pale", "Bright") if lighter else ("Deep", "Dusky", "Darkest")
+        label = next((f"{word} {name}" for word in words if f"{word} {name}" not in used), f"{name} {len(used) + 1}")
+        color["name"] = label
+        used.add(label)
+    return palette

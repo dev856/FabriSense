@@ -2886,9 +2886,9 @@ details[data-testid="stExpander"] summary *,
 }
 
 .stApp [data-testid="stCaptionContainer"] p {
-    color: #9f988f !important;
-    -webkit-text-fill-color: #9f988f !important;
-    font-size: 0.74rem !important;
+    color: #c4bdb2 !important;
+    -webkit-text-fill-color: #c4bdb2 !important;
+    font-size: 0.82rem !important;
 }
 
 .stApp hr {

@@ -140,6 +140,18 @@ class FabricAnalyzerTests(unittest.TestCase):
 
         self.assertEqual((texture["weight"], texture["drape"]), ("Heavyweight", "Stiff"))
 
+    def test_lighting_gradient_is_not_a_stripe_but_real_stripes_are(self):
+        import numpy as np
+
+        analyzer = FabricAnalyzer()
+        gradient = Image.fromarray(np.tile(np.linspace(40, 220, 256), (256, 1)).astype(np.uint8)).convert("RGB")
+        stripes = Image.fromarray(np.tile(np.where(np.arange(256) % 32 < 16, 40, 220), (256, 1)).astype(np.uint8)).convert("RGB")
+
+        gradient_pattern = analyzer.analyze(gradient, mode="heuristic")["llm_analysis"]["pattern"]["type"]
+        stripe_pattern = analyzer.analyze(stripes, mode="heuristic")["llm_analysis"]["pattern"]
+        self.assertNotEqual(gradient_pattern, "Striped")
+        self.assertEqual((stripe_pattern["type"], stripe_pattern["sub_type"]), ("Striped", "Vertical stripe"))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -39,6 +39,11 @@ FABRIC_HANDLE = {
 INTERIOR_FRIENDLY_LIGHTWEIGHTS = {"Cotton Blend", "Linen Blend", "Cotton", "Linen", "Terrycloth"}
 
 
+def _detrend(profile: np.ndarray, window: int = 65) -> np.ndarray:
+    smooth = np.convolve(np.pad(profile, window // 2, mode="edge"), np.ones(window) / window, mode="valid")
+    return profile - smooth
+
+
 class FabricAnalyzer:
     """Run end-to-end analysis for a fabric image."""
 
@@ -211,10 +216,9 @@ class FabricAnalyzer:
         rgb = np.array(sample).astype(np.float32)
         gray = np.array(sample.convert("L")).astype(np.float32)
 
-        row_profile = gray.mean(axis=1)
-        col_profile = gray.mean(axis=0)
-        row_strength = float(np.std(row_profile) / 255 * 100)
-        col_strength = float(np.std(col_profile) / 255 * 100)
+        # Detrend so a lighting gradient across the photo doesn't count as a stripe; real stripes up to ~1/4 of the image survive.
+        row_strength = float(np.std(_detrend(gray.mean(axis=1))) / 255 * 100)
+        col_strength = float(np.std(_detrend(gray.mean(axis=0))) / 255 * 100)
 
         gx = np.abs(np.diff(gray, axis=1))
         gy = np.abs(np.diff(gray, axis=0))
@@ -276,7 +280,8 @@ class FabricAnalyzer:
             scale = "medium"
             repeat = "regular"
         else:
-            pattern_type = "Geometric" if color_count >= 4 else "Textured solid"
+            # The palette always has ~6 clusters, so colour count can't separate these; strong contrast can.
+            pattern_type = "Geometric" if contrast > 25 else "Textured solid"
             sub_type = "Irregular visual texture"
             scale = "small"
             repeat = "irregular"

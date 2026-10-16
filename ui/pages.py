@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Dict
 
 import streamlit as st
+import streamlit.components.v1 as components
 from PIL import Image
 from streamlit_lottie import st_lottie
 
@@ -294,6 +295,7 @@ def _set_single_analysis_state(
     image_name: str,
 ) -> None:
     st.session_state.analysis = analysis
+    st.session_state.scroll_to_results = True
     st.session_state.report_bytes = report_bytes
     st.session_state.image = image
     st.session_state.image_name = image_name
@@ -713,13 +715,21 @@ def render_results_page(
     analysis: Dict[str, Any], report_bytes: bytes | None, image, image_name: str
 ) -> None:
     metadata = analysis.get("analysis_metadata", {})
+    st.markdown('<div id="results-anchor"></div>', unsafe_allow_html=True)
+    if st.session_state.pop("scroll_to_results", False):
+        # Results render below the input form; without this a finished run looks like nothing happened.
+        components.html(
+            "<script>setTimeout(() => window.parent.document.getElementById('results-anchor')"
+            "?.scrollIntoView({behavior: 'smooth'}), 300);</script>",
+            height=0,
+        )
     render_page_intro(
         "Material brief ready for review.",
         "The result below combines structure, palette, surface behavior, and commercial guidance into one presentation layer.",
         icon="report", label="Your material passport",
     )
     st.caption(
-        f"Mode: {metadata.get('analysis_mode', 'unknown')} | Engine: {_engine_label(metadata)} | "
+        f"Engine: {_engine_label(metadata)} | "
         f"Color clusters: {metadata.get('color_clusters', 'N/A')}"
     )
     display = format_analysis_for_display(analysis)

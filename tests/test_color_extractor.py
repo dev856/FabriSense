@@ -2,7 +2,7 @@
 
 from PIL import Image
 
-from src.color_extractor import ColorExtractor
+from src.color_extractor import ColorExtractor, _label_repeated_names
 
 
 class ColorExtractorTests(unittest.TestCase):
@@ -32,6 +32,16 @@ class ColorExtractorTests(unittest.TestCase):
 
         harmony = extractor.get_color_harmony(palette)
         self.assertEqual(harmony, "Neutral")
+
+    def test_repeated_names_get_tones_and_dominant_keeps_plain_name(self):
+        palette = [
+            {"rgb": (120, 120, 120), "name": "Gray"},
+            {"rgb": (180, 180, 180), "name": "Gray"},
+            {"rgb": (200, 200, 200), "name": "Gray"},
+            {"rgb": (80, 80, 80), "name": "Gray"},
+        ]
+        names = [color["name"] for color in _label_repeated_names(palette)]
+        self.assertEqual(names, ["Gray", "Light Gray", "Pale Gray", "Deep Gray"])
 
 
 if __name__ == "__main__":

@@ -398,9 +398,6 @@ def material_passport(title: str, rows: Dict[str, Any]) -> None:
 
 
 def render_metric_band(metrics: Dict[str, Any]) -> None:
-    rating = metrics.get("stars", "N/A")
-    if isinstance(rating, str) and rating and set(rating) == {"*"}:
-        rating = f"{len(rating)} / 5"
     cards = [
         (
             "Quality",
@@ -408,7 +405,7 @@ def render_metric_band(metrics: Dict[str, Any]) -> None:
             if isinstance(metrics.get("score"), (int, float))
             else str(metrics.get("score", "N/A")),
         ),
-        ("Rating", rating),
+        ("Price Tier", str(metrics.get("price_category", "N/A"))),
         ("Best Seasons", metrics.get("seasons", "N/A")),
         ("Eco Score", str(metrics.get("eco_score", "N/A"))),
     ]
