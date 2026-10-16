@@ -9,13 +9,14 @@ class CalibrationTests(unittest.TestCase):
     def test_overconfident_logits_get_temperature_above_one_and_lower_ece(self):
         rng = np.random.default_rng(0)
         labels = rng.integers(0, 4, size=2000)
-        # Signal strength 1.0 is the "true" scale; multiplying by 4 makes the model overconfident.
-        true_logits = rng.normal(size=(2000, 4))
-        true_logits[np.arange(2000), labels] += 1.5
-        overconfident = true_logits * 4
+        # Unit-variance Gaussian logits with a 1.5 shift on the true class: the Bayes-calibrated
+        # logits are 1.5 * raw, so scaling raw by 4 needs T = 4 / 1.5 to undo.
+        raw_logits = rng.normal(size=(2000, 4))
+        raw_logits[np.arange(2000), labels] += 1.5
+        overconfident = raw_logits * 4
 
         temperature = fit_temperature(overconfident, labels)
-        self.assertAlmostEqual(temperature, 4.0, delta=0.6)
+        self.assertAlmostEqual(temperature, 4 / 1.5, delta=0.4)
         self.assertLess(
             expected_calibration_error(softmax(overconfident, temperature), labels),
             expected_calibration_error(softmax(overconfident), labels),
