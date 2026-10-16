@@ -158,8 +158,15 @@ def analyses_to_csv(rows: Iterable[Dict[str, Any]]) -> bytes:
     buffer = io.StringIO()
     writer = csv.DictWriter(buffer, fieldnames=fieldnames)
     writer.writeheader()
-    writer.writerows(rows_list)
+    writer.writerows({key: _csv_safe(value) for key, value in row.items()} for row in rows_list)
     return buffer.getvalue().encode("utf-8")
+
+
+def _csv_safe(value: Any) -> Any:
+    """Prefix text that spreadsheets would execute as a formula (OWASP CSV injection guidance)."""
+    if isinstance(value, str) and value[:1] in ("=", "+", "-", "@", "\t", "\r"):
+        return "'" + value
+    return value
 
 
 def history_entry_from_summary(summary: Dict[str, Any]) -> Dict[str, Any]:

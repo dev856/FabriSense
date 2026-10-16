@@ -110,5 +110,13 @@ class UtilsTests(unittest.TestCase):
         self.assertEqual(rows, [{"label": "Cotton", "precision": 0.7, "recall": 0.8, "f1_score": 0.75, "support": 10}])
 
 
+class CsvExportTests(unittest.TestCase):
+    def test_formula_like_text_is_neutralised_but_numbers_are_not(self):
+        from src.utils import analyses_to_csv
+
+        csv_text = analyses_to_csv([{"image_name": "=HYPERLINK(\"x\")", "fabric": "Denim", "quality_score": -1.5}]).decode()
+        self.assertIn("'=HYPERLINK", csv_text)
+        self.assertIn(",Denim,-1.5", csv_text)
+
 if __name__ == "__main__":
     unittest.main()

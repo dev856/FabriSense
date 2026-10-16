@@ -1332,6 +1332,8 @@ def _run_comparison(
     checkpoint_path: str | None = None,
 ) -> None:
     _render_loading_state("comparison-loading")
+    if name_a == name_b:
+        name_a, name_b = f"{name_a} (A)", f"{name_b} (B)"
 
     spinner_text = _mode_spinner(analysis_mode, context="comparison")
     with st.spinner(spinner_text):
@@ -1345,6 +1347,8 @@ def _run_comparison(
             st.error(f"{prefix} Details: {exc}")
             return
 
+    _append_history_entry(analysis_a, name_a)
+    _append_history_entry(analysis_b, name_b)
     st.session_state.comparison_bundle = {
         "analysis_a": analysis_a,
         "analysis_b": analysis_b,
@@ -1421,7 +1425,7 @@ def render_history_page() -> None:
         render_empty_state(
             "history",
             "No History Yet",
-            "Run a single or batch analysis first. Your past results will appear here.",
+            "Run an analysis, batch, or comparison first. Your past results will appear here.",
         )
         return
 
