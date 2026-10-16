@@ -13,7 +13,6 @@ from PIL import Image
 from streamlit_lottie import st_lottie
 
 from src.analyzer import FabricAnalyzer
-from src.history_store import HistoryStore
 from src.image_preprocessor import ImagePreprocessor
 from src.model_benchmark import (
     compare_checkpoints_on_manifest,
@@ -25,7 +24,6 @@ from src.local_model import (
     get_local_model_client,
     list_available_local_models,
 )
-from src.model_review_store import ModelReviewStore
 from src.report_generator import ReportGenerator
 from src.utils import (
     analysis_engine_label,
@@ -188,8 +186,25 @@ WORKFLOW_BANNERS = {
     },
 }
 
-HISTORY = HistoryStore()
-MODEL_REVIEWS = ModelReviewStore()
+class _SessionStore:
+    """Per-visitor list in st.session_state, so visitors of the deployed app never see or clear each other's data."""
+
+    def __init__(self, key: str, limit: int):
+        self.key = key
+        self.limit = limit
+
+    def load(self) -> list[Dict[str, Any]]:
+        return list(st.session_state.get(self.key, []))
+
+    def append(self, entry: Dict[str, Any]) -> None:
+        st.session_state[self.key] = [entry, *self.load()][: self.limit]
+
+    def clear(self) -> None:
+        st.session_state[self.key] = []
+
+
+HISTORY = _SessionStore("history_entries", limit=200)
+MODEL_REVIEWS = _SessionStore("model_review_entries", limit=500)
 
 
 def _engine_label(metadata: Dict[str, Any]) -> str:

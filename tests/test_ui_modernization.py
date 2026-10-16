@@ -1233,14 +1233,12 @@ class TestConfusionImageInspector(unittest.TestCase):
         with patch("ui.pages.get_local_model_client", return_value=mock_client):
             with patch("ui.pages.list_manifest_directories", return_value=manifest_entries):
                 with patch("ui.pages.list_available_local_models", return_value=available_models):
-                    with patch("ui.pages.ModelReviewStore") as mock_store:
-                        mock_store.return_value.load.return_value = []
-                        try:
-                            render_model_info_page()
-                        except Exception as e:
-                            import traceback
-                            print("EXCEPTION OCCURRED:", e)
-                            traceback.print_exc()
+                    try:
+                        render_model_info_page()
+                    except Exception as e:
+                        import traceback
+                        print("EXCEPTION OCCURRED:", e)
+                        traceback.print_exc()
         
         # Verify that selectbox was called to choose mismatch pair
         mock_selectbox.assert_any_call(

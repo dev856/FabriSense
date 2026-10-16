@@ -12,7 +12,7 @@ The app is designed for practical analysis workflows: single-image review, side-
 - Two local analysis modes: `Local Heuristics` and `Local Trained Model`
 - Side-by-side fabric comparison
 - Batch analysis with CSV export
-- Local history of previous analyses
+- Per-session history of previous analyses (private to each visitor)
 - Model benchmark and checkpoint review pages
 - PDF report generation
 
@@ -38,7 +38,7 @@ The app is designed for practical analysis workflows: single-image review, side-
 
 - Trained checkpoints and run artifacts are stored under `artifacts/`.
 - Benchmark utilities support checkpoint comparison and manifest-based evaluation.
-- Review history and benchmark outputs are persisted locally for repeatable analysis.
+- Benchmark outputs are persisted locally for repeatable analysis; analysis history and model reviews live in the browser session.
 - Training supports `scratch_cnn`, `resnet18`, `resnet34`, `efficientnet_b0`, `mobilenet_v3_small`, `vgg16`, and `alexnet`.
 - Latest phase-1 trained checkpoints include EfficientNet-B0 (macro F1 0.971), ResNet-34 (macro F1 0.955), AlexNet (macro F1 0.866), and VGG-16 (macro F1 0.860).
 - **Explainability:** the Analyze page shows a Grad-CAM heatmap of the image regions that drove the trained model's prediction.
