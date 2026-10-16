@@ -130,6 +130,16 @@ class FabricAnalyzerTests(unittest.TestCase):
         self.assertEqual(result["llm_analysis"]["fabric_type"]["primary"], "Cotton")
         self.assertIn("model_prediction", result["llm_analysis"])
 
+    def test_trained_texture_matches_predicted_fabric(self):
+        # A flat image reads as "Lightweight / Fluid" from metrics alone; a Denim prediction must override that.
+        client = DummyLocalModelClient()
+        client.predict = lambda image: {**DummyLocalModelClient().predict(image), "label": "Denim"}
+        analyzer = FabricAnalyzer(local_model_client=client)
+
+        texture = analyzer.analyze(Image.new("RGB", (120, 90), (55, 88, 140)), mode="trained")["llm_analysis"]["texture"]
+
+        self.assertEqual((texture["weight"], texture["drape"]), ("Heavyweight", "Stiff"))
+
 
 if __name__ == "__main__":
     unittest.main()

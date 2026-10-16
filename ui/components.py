@@ -316,6 +316,7 @@ def render_upload_panel(
         type=sorted(ImagePreprocessor.SUPPORTED_FORMATS),
         accept_multiple_files=False,
         key=key,
+        label_visibility="collapsed",
     )
     if uploaded is None:
         return None

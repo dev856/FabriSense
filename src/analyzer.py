@@ -23,6 +23,19 @@ HIGH_PILLING_FABRICS = {"Wool Blend", "Wool", "Fleece", "Chenille"}
 MEDIUM_PILLING_FABRICS = {"Cotton Blend", "Polyester Blend", "Linen Blend", "Cotton", "Polyester", "Linen", "Viscose"}
 NATURAL_FIBER_FABRICS = {"Cotton Blend", "Linen Blend", "Wool Blend", "Denim", "Cotton", "Linen", "Wool", "Terrycloth"}
 SHEEN_HEAVY_FABRICS = {"Silk Blend", "Silk", "Satin", "Velvet"}
+# Typical (weight, drape) per trained-model class; image metrics can't tell a heavy twill from a light weave.
+FABRIC_HANDLE = {
+    "Cotton": ("Medium-weight", "Semi-structured"),
+    "Denim": ("Heavyweight", "Stiff"),
+    "Fleece": ("Heavyweight", "Semi-structured"),
+    "Linen": ("Medium-weight", "Semi-structured"),
+    "Nylon": ("Lightweight", "Fluid"),
+    "Polyester": ("Lightweight", "Fluid"),
+    "Silk": ("Lightweight", "Fluid"),
+    "Terrycloth": ("Heavyweight", "Semi-structured"),
+    "Viscose": ("Lightweight", "Fluid"),
+    "Wool": ("Heavyweight", "Semi-structured"),
+}
 INTERIOR_FRIENDLY_LIGHTWEIGHTS = {"Cotton Blend", "Linen Blend", "Cotton", "Linen", "Terrycloth"}
 
 
@@ -135,6 +148,8 @@ class FabricAnalyzer:
             if model_prediction is None
             else self._fabric_from_model_prediction(model_prediction)
         )
+        if fabric["primary"] in FABRIC_HANDLE and model_prediction is not None:
+            texture["weight"], texture["drape"] = FABRIC_HANDLE[fabric["primary"]]
         quality = self._infer_quality(metrics, fabric)
         summary_source = "trained" if model_prediction is not None else "heuristic"
         summary = self._overall_summary(

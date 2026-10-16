@@ -873,7 +873,7 @@ def render_results_page(
                             f"Alt: {item.get('label', 'N/A')} ({round(float(item.get('confidence', 0)) * 100, 1)}%)"
                             for item in model_prediction.get("top_predictions", [])[1:]
                         ],
-                        f"Checkpoint: {model_prediction.get('checkpoint_path', 'N/A')}",
+                        f"Checkpoint: {'/'.join(Path(model_prediction.get('checkpoint_path') or 'N/A').parts[-2:])}",
                     ],
                 )
                 render_list_block(
