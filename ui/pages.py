@@ -45,12 +45,14 @@ from ui.components import (
     render_chat_narrative,
     render_color_palette,
     render_color_wheel,
+    render_care_cards,
     render_compare_card,
     render_confidence_bar,
     render_confusion_matrix_heatmap,
     render_confusion_sankey,
     render_empty_state,
     render_feature_strip,
+    render_fabric_reference,
     render_client_workflow,
     render_demo_scenarios,
     render_gauge_chart,
@@ -68,6 +70,7 @@ from ui.components import (
     render_palette_gradient_bar,
     render_radar_chart,
     render_sample_gallery,
+    render_section_heading,
     render_skeleton,
     render_skeleton_card,
     render_status_dot,
@@ -603,7 +606,6 @@ def _score_value(value: Any, default: float = 5.0) -> float:
 
 def render_home_page() -> None:
     render_hero()
-    render_client_workflow()
     render_feature_strip()
 
     mode_label = st.radio("Analysis Mode", ANALYSIS_OPTIONS, horizontal=True)
@@ -627,8 +629,9 @@ def render_home_page() -> None:
     choice = upload_choice or sample_choice
 
     if choice is None:
+        render_client_workflow()
         render_empty_state(
-            "&#128247;",
+            "image",
             "No Image Selected",
             "Choose a curated sample or upload a textile image to start a material read.",
         )
@@ -643,6 +646,7 @@ def render_home_page() -> None:
     button_label = _mode_button_label(analysis_mode)
     if st.button(
         button_label,
+        icon=":material/document_scanner:",
         type="primary",
         width="stretch",
         disabled=analysis_mode == "trained" and not selected_checkpoint,
@@ -691,6 +695,7 @@ def render_results_page(
     render_page_intro(
         "Material brief ready for review.",
         "The result below combines structure, palette, surface behavior, and commercial guidance into one presentation layer.",
+        icon="report", label="Your material passport",
     )
     st.caption(
         f"Mode: {metadata.get('analysis_mode', 'unknown')} | Engine: {_engine_label(metadata)} | "
@@ -713,9 +718,14 @@ def render_results_page(
     interior = llm.get("interior_use", {})
     _render_results_guide(model_prediction if model_prediction else None)
 
-    tab_labels = ["Overview", "Material Read", "Commercial Fit", "Narrative"]
+    tab_labels = [
+        ":material/dashboard: Overview",
+        ":material/texture: Material Read",
+        ":material/style: Commercial Fit",
+        ":material/auto_stories: Narrative",
+    ]
     if model_prediction:
-        tab_labels.append("Model Review")
+        tab_labels.append(":material/fact_check: Model Review")
     tabs = st.tabs(tab_labels)
     overview_tab, material_tab, commercial_tab, narrative_tab = tabs[:4]
     model_review_tab = tabs[4] if model_prediction else None
@@ -723,26 +733,24 @@ def render_results_page(
     with overview_tab:
         img_col, data_col = st.columns([0.9, 1.1], gap="large")
         with img_col:
-            st.markdown('<div class="result-sticky">', unsafe_allow_html=True)
-            st.image(image, caption=image_name, use_container_width=True)
+            st.image(image, caption=image_name, width="stretch")
             action_cols = st.columns(2)
             with action_cols[0]:
                 if report_bytes:
                     st.download_button(
                         "Download PDF Report",
+                        icon=":material/download:",
                         data=report_bytes,
                         file_name=f"{image_name.rsplit('.', 1)[0]}-fabrisense-report.pdf",
                         mime="application/pdf",
                         width="stretch",
                     )
             with action_cols[1]:
-                if st.button("Start New Analysis", width="stretch"):
+                if st.button("Start New Analysis", icon=":material/add:", width="stretch"):
                     _clear_single_analysis_state()
                     st.rerun()
-            st.markdown("</div>", unsafe_allow_html=True)
 
         with data_col:
-            st.markdown('<div class="ivory-card">', unsafe_allow_html=True)
             material_passport(
                 image_name,
                 {
@@ -762,7 +770,6 @@ def render_results_page(
                 },
             )
             palette_bar(palette.get("colors", []))
-            st.markdown("</div>", unsafe_allow_html=True)
 
         render_color_palette(
             palette.get("colors", []), palette.get("harmony_type", "Unknown")
@@ -979,8 +986,9 @@ def render_results_page(
 
 def render_batch_page() -> None:
     render_page_intro(
-        "Analyze a batch of fabric images in one run.",
+        "A collection. A clearer picture.",
         "Use batch mode to review seller catalogs, classroom submissions, or sourcing references and export the summary as CSV.",
+        icon="layers", label="Batch analysis",
     )
     if st.session_state.get("batch_mode") not in ANALYSIS_OPTIONS:
         st.session_state.batch_mode = ANALYSIS_OPTIONS[0]
@@ -1005,6 +1013,7 @@ def render_batch_page() -> None:
     )
     if files and st.button(
         "Run Batch Analysis",
+        icon=":material/layers:",
         type="primary",
         width="stretch",
         disabled=analysis_mode == "trained" and not selected_checkpoint,
@@ -1014,7 +1023,7 @@ def render_batch_page() -> None:
     bundle = st.session_state.batch_bundle
     if not bundle:
         render_empty_state(
-            "&#128202;",
+            "layers",
             "No Batch Results",
             "Upload several textile images to generate a batch summary and CSV export.",
         )
@@ -1050,6 +1059,7 @@ def render_batch_page() -> None:
 
     st.download_button(
         "Download Batch CSV",
+        icon=":material/download:",
         data=analyses_to_csv(displayed_rows),
         file_name="fabrisense-batch-summary.csv",
         mime="text/csv",
@@ -1140,8 +1150,9 @@ def _run_batch_analysis(
 
 def render_compare_page() -> None:
     render_page_intro(
-        "Compare two materials in one workspace.",
+        "Find your better fit.",
         "Use the comparison view to separate fabric family, pattern direction, palette shifts, and visual quality without jumping between tabs.",
+        icon="compare", label="Compare fabrics",
     )
 
     if st.session_state.get("compare_mode") not in ANALYSIS_OPTIONS:
@@ -1168,6 +1179,7 @@ def render_compare_page() -> None:
         button_label = _mode_button_label(analysis_mode, context="comparison")
         if st.button(
             button_label,
+            icon=":material/compare:",
             type="primary",
             width="stretch",
             disabled=analysis_mode == "trained" and not selected_checkpoint,
@@ -1183,12 +1195,14 @@ def render_compare_page() -> None:
 
     bundle = st.session_state.comparison_bundle
     if not bundle:
+        render_empty_state("compare", "Two swatches. One thoughtful decision.", "Choose a fabric for each panel, then compare their texture, palette, and quality side by side.")
         return
 
     st.divider()
     render_page_intro(
         "A clearer read on which material performs better visually.",
         "Review the recommendation, inspect each textile panel, and use the differences list to explain the selection with confidence.",
+        icon="compare", label="Comparison results",
     )
     st.caption(
         f"Mode: {bundle.get('analysis_mode', 'unknown')} | Engine: {_engine_label(bundle)}"
@@ -1257,7 +1271,7 @@ def render_compare_page() -> None:
     with list_right:
         render_list_block("Meaningful Differences", summary["differences"])
 
-    if st.button("Clear Comparison", width="stretch"):
+    if st.button("Clear Comparison", icon=":material/restart_alt:", width="stretch"):
         st.session_state.comparison_bundle = None
         st.rerun()
 
@@ -1305,7 +1319,7 @@ def _render_compare_input(
     title: str, key_prefix: str
 ) -> tuple[Image.Image | None, str | None]:
     with st.container(border=True):
-        st.markdown(f"### {title}")
+        render_section_heading(title, "layers")
         uploaded = st.file_uploader(
             f"Upload image for {title}",
             type=sorted(ImagePreprocessor.SUPPORTED_FORMATS),
@@ -1351,13 +1365,14 @@ def _render_compare_input(
 
 def render_history_page() -> None:
     render_page_intro(
-        "Review recent material reads without re-uploading.",
+        "Your material discoveries, saved.",
         "History keeps a compact local log of prior runs so the app works more like a real review workspace.",
+        icon="history", label="Analysis history",
     )
     history = HISTORY.load()
     if not history:
         render_empty_state(
-            "&#128337;",
+            "history",
             "No History Yet",
             "Run a single or batch analysis first. Your past results will appear here.",
         )
@@ -1365,12 +1380,13 @@ def render_history_page() -> None:
 
     st.download_button(
         "Download History CSV",
+        icon=":material/download:",
         data=analyses_to_csv(history),
         file_name="fabrisense-history.csv",
         mime="text/csv",
         width="stretch",
     )
-    if st.button("Clear History", width="stretch"):
+    if st.button("Clear History", icon=":material/delete_outline:", width="stretch"):
         HISTORY.clear()
         st.rerun()
 
@@ -1379,29 +1395,24 @@ def render_history_page() -> None:
 
 def render_fabric_guide_page() -> None:
     render_page_intro(
-        "A compact guide to common fabric families.",
+        "Get to know every fiber.",
         "Use this page as a quick working reference when you need plain-language reminders about feel, use cases, and caution points.",
+        icon="book", label="The fabric library",
     )
 
     cols = st.columns(2)
     for index, item in enumerate(FABRIC_GUIDE):
         with cols[index % 2]:
-            render_key_value_block(
-                item["name"],
-                {
-                    "Feel": item["feel"],
-                    "Best For": item["best_for"],
-                    "Watch For": item["watch_for"],
-                },
-            )
+            render_fabric_reference(item)
 
 
 def render_care_guide_page() -> None:
     render_page_intro(
-        "Fast handling guidance for common material families.",
+        "Good care. Longer stories.",
         "These are general defaults for textile handling. Final garment care still depends on dye, finish, trims, and construction.",
+        icon="care", label="Fabric care guide",
     )
-    st.table(CARE_GUIDE)
+    render_care_cards(CARE_GUIDE)
 
     render_list_block(
         "Good Habits",
@@ -1419,8 +1430,9 @@ def render_model_info_page() -> None:
     available_models = _available_local_models()
     reviews = MODEL_REVIEWS.load()
     render_page_intro(
-        "How FabriSense presents local model evidence.",
+        "The intelligence behind the insight.",
         "Use this page to explain the locally trained classifier, local heuristic baseline, checkpoint metrics, and review workflow.",
+        icon="chip", label="Models & evidence",
     )
     _render_model_guide()
 
@@ -1673,7 +1685,7 @@ def render_model_info_page() -> None:
 
         if not manifest_entries:
             render_empty_state(
-                "&#128193;",
+                "layers",
                 "No Benchmark Manifests",
                 "Add labels.json plus train/val/test CSV manifests under data/ to enable in-app benchmarking.",
             )
@@ -1968,7 +1980,7 @@ def render_model_info_page() -> None:
     st.markdown("### Review Feedback Loop")
     if not review_summary:
         render_empty_state(
-            "&#128221;",
+            "report",
             "No Reviews Yet",
             "Save corrections from trained-model runs to build a feedback loop.",
         )
@@ -2012,8 +2024,9 @@ def render_model_info_page() -> None:
 
 def render_about_page() -> None:
     render_page_intro(
-        "FabriSense is a client-facing textile intelligence workspace.",
+        "A little closer to the material.",
         "The project turns fabric images into visual material briefs while keeping the machine-learning evidence available for portfolio review.",
+        icon="weave", label="About FabriSense",
     )
     render_demo_scenarios()
     left, right = st.columns((0.8, 1.2), gap="large")

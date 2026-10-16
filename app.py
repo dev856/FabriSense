@@ -2,7 +2,8 @@ from pathlib import Path
 
 import streamlit as st
 
-from ui.components import render_sidebar_brand
+from ui.components import render_sidebar_brand, render_sidebar_footer
+from ui.icons import navigation_icon_css
 from ui.pages import (
     render_about_page,
     render_batch_page,
@@ -17,22 +18,22 @@ from ui.pages import (
 from ui.styles import APP_CSS, get_dynamic_theme_css
 
 NAV_ICONS = [
-    "search",
-    "grid",
+    "scan",
+    "layers",
     "compare",
-    "clock",
-    "guide",
-    "spark",
-    "model",
+    "history",
+    "book",
+    "care",
+    "chip",
     "info",
 ]
 NAV_LABELS = [
     "Analyze",
     "Batch Analysis",
-    "Compare",
+    "Compare Fabrics",
     "History",
-    "Guide",
-    "Care",
+    "Fabric Guide",
+    "Care Guide",
     "Models",
     "About",
 ]
@@ -71,26 +72,20 @@ def _apply_dynamic_theme() -> None:
 def _render_sidebar_navigation() -> str:
     with st.sidebar:
         render_sidebar_brand()
-        options = [
-            "Analyze",
-            "Batch",
-            "Compare",
-            "History",
-            "Guide",
-            "Care",
-            "Models",
-            "About",
-        ]
-        selected = st.radio(
+        st.markdown(navigation_icon_css(NAV_ICONS), unsafe_allow_html=True)
+        st.markdown('<p class="nav-section-label">Your workspace</p>', unsafe_allow_html=True)
+        current_page = st.session_state.get("nav_page", "analyze")
+        page_id = st.radio(
             "Navigate",
-            options,
+            NAV_IDS,
+            format_func=dict(zip(NAV_IDS, NAV_LABELS)).get,
             label_visibility="collapsed",
-            index=NAV_IDS.index(st.session_state.get("nav_page", "analyze")),
+            index=NAV_IDS.index(current_page) if current_page in NAV_IDS else 0,
         )
-        page_id = NAV_IDS[options.index(selected)]
         if page_id != st.session_state.get("nav_page"):
             st.session_state.nav_page = page_id
             st.rerun()
+        render_sidebar_footer()
     return page_id
 
 

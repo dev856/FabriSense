@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import colorsys
 
+from ui.visual_styles import VISUAL_CSS
+
 
 APP_CSS = """
 <style>
@@ -306,14 +308,6 @@ section[data-testid="stSidebar"] .stRadio [role="radiogroup"] label::before {
     line-height: 1;
 }
 
-section[data-testid="stSidebar"] .stRadio [role="radiogroup"] label:nth-child(1)::before { content: "\\2315"; }
-section[data-testid="stSidebar"] .stRadio [role="radiogroup"] label:nth-child(2)::before { content: "\\25A6"; }
-section[data-testid="stSidebar"] .stRadio [role="radiogroup"] label:nth-child(3)::before { content: "\\21C4"; }
-section[data-testid="stSidebar"] .stRadio [role="radiogroup"] label:nth-child(4)::before { content: "\\25F7"; }
-section[data-testid="stSidebar"] .stRadio [role="radiogroup"] label:nth-child(5)::before { content: "\\25A4"; }
-section[data-testid="stSidebar"] .stRadio [role="radiogroup"] label:nth-child(6)::before { content: "\\2726"; }
-section[data-testid="stSidebar"] .stRadio [role="radiogroup"] label:nth-child(7)::before { content: "\\25C6"; }
-section[data-testid="stSidebar"] .stRadio [role="radiogroup"] label:nth-child(8)::before { content: "\\25C7"; }
 
 section[data-testid="stSidebar"] .stRadio [role="radiogroup"] label:hover {
     background: rgba(var(--brass-rgb), 0.08) !important;
@@ -3090,7 +3084,7 @@ details[data-testid="stExpander"] summary *,
 </style>
 """
 
-APP_CSS += PREMIUM_CSS
+APP_CSS += PREMIUM_CSS + VISUAL_CSS
 
 
 def hex_to_hsl(hex_str: str) -> tuple[float, float, float]:

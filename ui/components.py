@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import base64
+from functools import lru_cache
 from html import escape as html_escape
 from pathlib import Path
 from typing import Any, Dict, Iterable, Optional, Tuple
@@ -10,10 +12,33 @@ import streamlit as st
 from PIL import Image
 
 from src.image_preprocessor import ImagePreprocessor
+from ui.icons import icon_badge, icon_svg, page_illustration, section_icon
+
+
+@lru_cache(maxsize=6)
+def _fabric_image_uri(name: str) -> str:
+    """Embed bundled swatches so HTML graphics work on every Streamlit route."""
+    if name not in {"cotton", "linen", "silk", "wool", "denim", "polyester"}:
+        return ""
+    path = Path(__file__).resolve().parent.parent / "assets" / "sample_fabrics" / f"{name}.jpg"
+    if not path.exists():
+        return ""
+    return "data:image/jpeg;base64," + base64.b64encode(path.read_bytes()).decode("ascii")
 
 
 def _safe_text(value: Any) -> str:
     return html_escape("" if value is None else str(value), quote=True)
+
+
+def _heading_content(title: str, icon: str, *, badge: bool = False) -> str:
+    # Streamlit inserts its own span inside headings. Keep the icon and label
+    # together in an explicit layout element so spacing survives that wrapper.
+    graphic = icon_badge(icon) if badge else icon_svg(icon)
+    return f'<span class="heading-content">{graphic}<span class="heading-text">{_safe_text(title)}</span></span>'
+
+
+def _select_sample(state_key: str, name: str | None) -> None:
+    st.session_state[state_key] = name
 
 
 def _safe_hex(value: Any) -> str:
@@ -25,36 +50,46 @@ def _safe_hex(value: Any) -> str:
 
 def render_sidebar_brand() -> None:
     st.markdown(
-        """
+        f"""
         <aside class="sidebar-brand-card">
             <div class="sidebar-wordmark">
-                <span class="sidebar-mark" aria-hidden="true"><span></span></span>
+                <span class="sidebar-logo">{icon_svg("weave", 28)}</span>
                 <div>
                     <p class="sidebar-product">FabriSense</p>
                     <p class="sidebar-product-meta">Textile intelligence</p>
                 </div>
             </div>
-            <div class="sidebar-rule"></div>
-            <h3>Material decisions,<br>made visible.</h3>
-            <p class="sidebar-brand-copy">Analyze, compare, and document fabric evidence in one focused workspace.</p>
-            <div class="sidebar-status"><span aria-hidden="true"></span>Local workspace</div>
         </aside>
         """,
         unsafe_allow_html=True,
     )
 
 
-def render_page_intro(title: str, body: str | None = None, legacy_body: str | None = None) -> None:
+def render_sidebar_footer() -> None:
+    st.markdown(
+        f'<div class="sidebar-note">{icon_badge("shield", "sage")}'
+        '<div><strong>Your fabrics. Your workspace.</strong>'
+        '<p>Local analysis, from first swatch to final report.</p></div></div>'
+        '<div class="sidebar-status"><span aria-hidden="true"></span>Designed for material discovery</div>',
+        unsafe_allow_html=True,
+    )
+
+
+def render_page_intro(
+    title: str, body: str | None = None, legacy_body: str | None = None,
+    *, icon: str = "weave", label: str = "Material workspace",
+) -> None:
     if legacy_body is not None:
         title, body = str(body or ""), legacy_body
     st.markdown(
         f"""
         <section class="page-intro ivory-card">
-            <span class="page-intro-rule" aria-hidden="true"></span>
-            <div>
+            <div class="page-intro-copy">
+                <div class="page-heading-label">{icon_badge(icon)}<span>{_safe_text(label)}</span></div>
                 <h2>{_safe_text(title)}</h2>
                 <p class="page-intro-text">{_safe_text(body)}</p>
             </div>
+            <div class="page-art">{page_illustration(icon)}</div>
         </section>
         """,
         unsafe_allow_html=True,
@@ -63,36 +98,30 @@ def render_page_intro(title: str, body: str | None = None, legacy_body: str | No
 
 def render_hero() -> None:
     st.markdown(
-        """
+        f"""
         <section class="hero-shell atelier-home-card ivory-card">
             <div class="hero-copy">
-                <p class="hero-kicker"><span aria-hidden="true"></span>Image-to-insight workspace</p>
-                <h1>Turn a fabric image into a material passport.</h1>
+                <p class="hero-kicker">{icon_svg("scan", 18)}A closer look at every thread</p>
+                <h1>Every fabric<br>has a story.</h1>
                 <p class="hero-text">
-                    Upload a close-up textile image and generate a polished read on fabric family,
-                    surface feel, color palette, care, quality, and local model evidence.
+                    Discover its texture, color, and character. Turn a textile image into
+                    a material passport you can explore, compare, and share.
                 </p>
                 <div class="hero-tags">
-                    <span>Local model</span>
-                    <span>Palette story</span>
-                    <span>Export ready</span>
-                </div>
-                <div class="hero-proof-row" aria-label="Product capabilities">
-                    <div><strong>Local</strong><span>Privacy-first analysis</span></div>
-                    <div><strong>Visual</strong><span>Decision-ready evidence</span></div>
-                    <div><strong>Shareable</strong><span>Reports and CSV exports</span></div>
+                    <span>{icon_svg("shield", 15)}Local analysis</span>
+                    <span>{icon_svg("palette", 15)}Color discovery</span>
+                    <span>{icon_svg("report", 15)}Ready to share</span>
                 </div>
             </div>
             <div class="hero-visual" aria-hidden="true">
-                <div class="hero-weave-window">
-                    <span class="weave-thread thread-one"></span>
-                    <span class="weave-thread thread-two"></span>
-                    <span class="weave-thread thread-three"></span>
-                    <div class="weave-focus-ring"><span></span></div>
-                    <p>Surface scan</p>
+                <div class="swatch-stack swatch-back"><img src="{_fabric_image_uri('denim')}" alt=""></div>
+                <div class="swatch-stack swatch-front">
+                    <img src="{_fabric_image_uri('linen')}" alt="">
+                    <div class="scan-corners"></div>
+                    <span class="swatch-label">{icon_svg("scan", 16)}A new perspective on texture</span>
                 </div>
                 <div class="material-ticket">
-                    <div class="ticket-head"><span>Material passport</span><strong>FS / 01</strong></div>
+                    <div class="ticket-head"><span>{icon_svg("layers", 16)} Material passport</span><strong>Preview</strong></div>
                     <div class="ticket-row"><span>Family</span><strong>Natural weave</strong></div>
                     <div class="ticket-row"><span>Finish</span><strong>Soft structure</strong></div>
                     <div class="ticket-palette"><i></i><i></i><i></i><i></i></div>
@@ -118,10 +147,10 @@ def render_feature_strip() -> None:
         ),
     ]
     cards = []
-    for index, (title, body) in enumerate(items, start=1):
+    for index, (title, body) in enumerate(items):
         cards.append(
             "<div class='info-card ivory-card'>"
-            f"<span class='feature-index'>0{index}</span>"
+            f"{icon_badge(['weave', 'texture', 'palette', 'report'][index], ['gold', 'sage', 'rose', 'blue'][index])}"
             f"<h3>{_safe_text(title)}</h3>"
             f"<p>{_safe_text(body)}</p>"
             "</div>"
@@ -143,7 +172,8 @@ def render_client_workflow() -> None:
     for number, title, body in steps:
         cards.append(
             "<div class='workflow-step ivory-card'>"
-            f"<span>{_safe_text(number)}</span>"
+            f"{icon_badge(['upload', 'scan', 'book', 'report'][int(number) - 1])}"
+            f"<small class='step-number'>0{number}</small>"
             f"<strong>{_safe_text(title)}</strong>"
             f"<p>{_safe_text(body)}</p>"
             "</div>"
@@ -151,8 +181,8 @@ def render_client_workflow() -> None:
     st.markdown(
         "<div class='workflow-strip'>"
         "<div class='workflow-strip-head'>"
-        "<h3>Show the journey, then let the result explain itself.</h3>"
-        "<p>Four clear steps from source image to decision-ready material brief.</p>"
+        "<h3>From swatch to insight</h3>"
+        "<p>A little curiosity. Four simple steps.</p>"
         "</div>"
         f"<div class='workflow-step-grid'>{''.join(cards)}</div>"
         "</div>",
@@ -176,9 +206,9 @@ def render_demo_scenarios() -> None:
         ),
     ]
     cards = []
-    for title, body in scenarios:
+    for index, (title, body) in enumerate(scenarios):
         cards.append(
-            f"<div class='scenario-card ivory-card'><h4>{_safe_text(title)}</h4><p>{_safe_text(body)}</p></div>"
+            f"<div class='scenario-card ivory-card'>{icon_badge(['scan', 'compare', 'layers'][index], ['sage', 'gold', 'blue'][index])}<h4>{_safe_text(title)}</h4><p>{_safe_text(body)}</p></div>"
         )
     st.markdown(
         f"<div class='scenario-grid'>{''.join(cards)}</div>",
@@ -189,19 +219,19 @@ def render_demo_scenarios() -> None:
 def render_about_proof() -> None:
     """Render a deterministic About-page visual that does not depend on an iframe."""
     st.markdown(
-        """
+        f"""
         <section class="about-proof-card">
             <div class="about-proof-head">
                 <span>FabriSense thesis</span>
                 <strong>01</strong>
             </div>
-            <div class="about-proof-mark" aria-hidden="true"><span></span></div>
+            <div class="about-illustration">{page_illustration("weave")}</div>
             <h3>Built for material decisions, not just predictions.</h3>
             <p>Every result connects visible textile evidence to language a designer, buyer, or reviewer can act on.</p>
             <div class="about-proof-list">
-                <div><span>01</span><strong>Local by default</strong></div>
-                <div><span>02</span><strong>Evidence in context</strong></div>
-                <div><span>03</span><strong>Ready to share</strong></div>
+                <div>{icon_svg("shield", 18)}<strong>Local by default</strong></div>
+                <div>{icon_svg("scan", 18)}<strong>Evidence in context</strong></div>
+                <div>{icon_svg("report", 18)}<strong>Ready to share</strong></div>
             </div>
         </section>
         """,
@@ -219,9 +249,9 @@ def render_sample_gallery(
         return None
 
     st.markdown(
-        """
+        f"""
         <div class="input-section-head">
-            <h3>Use a curated textile reference</h3>
+            <h3>{_heading_content("Try a sample swatch", "layers")}</h3>
             <p>Start quickly with one of the built-in swatches and switch anytime.</p>
         </div>
         """,
@@ -240,11 +270,12 @@ def render_sample_gallery(
             )
             is_selected = selected_name == path.name
             button_label = f"Using {label}" if is_selected else f"Use {label}"
-            if st.button(
-                button_label, key=f"sample-{state_key}-{path.stem}", width="stretch"
-            ):
-                st.session_state[state_key] = path.name
-                selected_name = path.name
+            st.button(
+                button_label, key=f"sample-{state_key}-{path.stem}", width="stretch",
+                icon=":material/check_circle:" if is_selected else ":material/add:",
+                type="primary" if is_selected else "secondary",
+                on_click=_select_sample, args=(state_key, path.name),
+            )
 
     if not selected_name:
         return None
@@ -260,9 +291,8 @@ def render_sample_gallery(
     with info_col:
         st.caption(f"Selected sample: {selected_path.name}")
     with clear_col:
-        if st.button("Clear", key=f"clear-{state_key}", width="stretch"):
-            st.session_state.pop(state_key, None)
-            return None
+        st.button("Clear", key=f"clear-{state_key}", width="stretch",
+                  on_click=_select_sample, args=(state_key, None))
 
     return Image.open(selected_path).convert("RGB"), selected_path.name
 
@@ -275,7 +305,7 @@ def render_upload_panel(
     st.markdown(
         f"""
         <div class="input-section-head">
-            <h3>{_safe_text(title)}</h3>
+            <h3>{_heading_content(title, "upload")}</h3>
             <p>Drop a flat-lay, close-up, or catalog crop to generate a material read.</p>
         </div>
         """,
@@ -305,18 +335,18 @@ def render_upload_panel(
     return image, uploaded.name
 
 
+def _metric_card_html(label: str, value: Any, sub: str = "") -> str:
+    return (
+        '<div class="metric-card fs-metric-card ivory-card">'
+        f'<div class="metric-heading">{icon_badge(section_icon(label))}<div class="metric-label">{_safe_text(label)}</div></div>'
+        f'<div class="fs-metric-value">{_safe_text(value)}</div>'
+        f'<div class="fs-metric-sub">{_safe_text(sub)}</div></div>'
+    )
+
+
 def metric_card(label: str, value: Any, sub: str = "") -> None:
     """Render a compact metric card."""
-    st.markdown(
-        f"""
-        <div class="metric-card fs-metric-card ivory-card">
-            <div class="metric-label">{_safe_text(label)}</div>
-            <div class="fs-metric-value">{_safe_text(value)}</div>
-            <div class="fs-metric-sub">{_safe_text(sub)}</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    st.markdown(_metric_card_html(label, value, sub), unsafe_allow_html=True)
 
 
 def palette_bar(colors: Iterable[Dict[str, Any]] | Iterable[str]) -> None:
@@ -357,7 +387,7 @@ def material_passport(title: str, rows: Dict[str, Any]) -> None:
         f"""
         <section class="fs-card fs-passport ivory-card">
             <div>
-                <h3>{_safe_text(title)}</h3>
+                <h3 class="icon-heading">{_heading_content(title, "report")}</h3>
             </div>
             <div class="fs-passport-grid">{''.join(items)}</div>
         </section>
@@ -367,7 +397,9 @@ def material_passport(title: str, rows: Dict[str, Any]) -> None:
 
 
 def render_metric_band(metrics: Dict[str, Any]) -> None:
-    cols = st.columns(4)
+    rating = metrics.get("stars", "N/A")
+    if isinstance(rating, str) and rating and set(rating) == {"*"}:
+        rating = f"{len(rating)} / 5"
     cards = [
         (
             "Quality",
@@ -375,18 +407,19 @@ def render_metric_band(metrics: Dict[str, Any]) -> None:
             if isinstance(metrics.get("score"), (int, float))
             else str(metrics.get("score", "N/A")),
         ),
-        ("Rating", metrics.get("stars", "N/A")),
+        ("Rating", rating),
         ("Best Seasons", metrics.get("seasons", "N/A")),
         ("Eco Score", str(metrics.get("eco_score", "N/A"))),
     ]
-    for col, (title, value) in zip(cols, cards):
-        with col:
-            metric_card(title, value)
+    st.markdown(
+        '<div class="metric-band">' + ''.join(_metric_card_html(title, value) for title, value in cards) + '</div>',
+        unsafe_allow_html=True,
+    )
 
 
 def render_highlight_banner(title: str, body: str) -> None:
     st.markdown(
-        f"<div class='highlight-banner'><strong>{_safe_text(title)}</strong><p>{_safe_text(body)}</p></div>",
+        f"<div class='highlight-banner'>{icon_badge(section_icon(title))}<div><strong>{_safe_text(title)}</strong><p>{_safe_text(body)}</p></div></div>",
         unsafe_allow_html=True,
     )
 
@@ -395,7 +428,8 @@ def render_color_palette(colors: Iterable[Dict[str, Any]], harmony: str) -> None
     color_list = list(colors)
     if not color_list:
         return
-    st.markdown(f"### Color Palette  |  Harmony: `{harmony}`")
+    render_section_heading("Color Palette", "palette")
+    st.caption(f"Harmony: {harmony}")
     cols = st.columns(3)
     for index, color in enumerate(color_list):
         with cols[index % 3]:
@@ -554,7 +588,7 @@ def render_compare_card(
 
 
 def render_key_value_block(title: str, rows: Dict[str, Any]) -> None:
-    st.markdown(f"### {title}")
+    render_section_heading(title)
     items = []
     for label, value in rows.items():
         items.append(
@@ -570,7 +604,7 @@ def render_key_value_block(title: str, rows: Dict[str, Any]) -> None:
 
 
 def render_list_block(title: str, items: Iterable[str]) -> None:
-    st.markdown(f"### {title}")
+    render_section_heading(title)
     values = list(items)
     if not values:
         body = "<p>No data available.</p>"
@@ -580,10 +614,11 @@ def render_list_block(title: str, items: Iterable[str]) -> None:
 
 
 def render_empty_state(icon: str, title: str, body: str) -> None:
+    icon = {"&#128247;": "image", "&#128202;": "layers", "&#128337;": "history", "&#129302;": "chip"}.get(icon, icon)
     st.markdown(
         f"""
         <div class="empty-state-card ivory-card">
-            <div class="empty-state-icon">{icon}</div>
+            <div class="empty-state-art">{icon_svg(icon, 36)}<span class="art-dot" aria-hidden="true"></span><span class="art-dot" aria-hidden="true"></span></div>
             <h3>{_safe_text(title)}</h3>
             <p>{_safe_text(body)}</p>
         </div>
@@ -592,12 +627,45 @@ def render_empty_state(icon: str, title: str, body: str) -> None:
     )
 
 
+def render_section_heading(title: str, icon: str | None = None) -> None:
+    st.markdown(
+        f'<h3 class="section-heading">{_heading_content(title, icon or section_icon(title), badge=True)}</h3>',
+        unsafe_allow_html=True,
+    )
+
+
+def render_fabric_reference(item: Dict[str, str]) -> None:
+    name = item["name"]
+    rows = "".join(
+        f'<div class="reference-detail">{icon_svg(icon, 17)}<div><strong>{label}</strong><p>{_safe_text(item[key])}</p></div></div>'
+        for key, label, icon in [("feel", "The feel", "texture"), ("best_for", "Made for", "layers"), ("watch_for", "Keep in mind", "info")]
+    )
+    st.markdown(
+        f'<article class="fabric-reference ivory-card"><div class="fabric-reference-image">'
+        f'<img src="{_fabric_image_uri(name.lower())}" alt="{_safe_text(name)} sample texture">'
+        f'<span>{icon_svg("weave", 16)}Textile library</span></div>'
+        f'<div class="fabric-reference-body"><h3>{_safe_text(name)}</h3>{rows}</div></article>',
+        unsafe_allow_html=True,
+    )
+
+
+def render_care_cards(items: Iterable[Dict[str, str]]) -> None:
+    cards = []
+    for item in items:
+        rows = "".join(
+            f'<div class="care-instruction">{icon_badge(icon, tone)}<div><strong>{label}</strong><p>{_safe_text(item[key])}</p></div></div>'
+            for key, label, icon, tone in [("wash", "Wash", "wash", "blue"), ("dry", "Dry", "dry", "sage"), ("iron", "Iron", "iron", "gold")]
+        )
+        cards.append(f'<article class="care-reference ivory-card"><h3>{_heading_content(item["fabric"], "layers")}</h3>{rows}</article>')
+    st.markdown(f'<div class="care-grid">{"".join(cards)}</div>', unsafe_allow_html=True)
+
+
 def render_confidence_bar(label: str, confidence: float) -> str:
     pct = round(confidence * 100, 1)
     tier = "high" if confidence >= 0.8 else ("medium" if confidence >= 0.5 else "low")
     return f"""
     <div class="confidence-bar-container">
-        <span style="font-size:0.82rem;font-weight:700;color:var(--ink);min-width:8ch;">{_safe_text(label)}</span>
+        <span class="confidence-name">{_safe_text(label)}</span>
         <div class="confidence-bar">
             <div class="confidence-bar-fill {tier}" style="width:{pct}%;"></div>
         </div>
